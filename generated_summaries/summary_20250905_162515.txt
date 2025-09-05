@@ -1,0 +1,82 @@
+1. Key definitions
+1.1 Conditional probability
+- P(B|A) = probability that B occurs given A has occurred.
+- Formula: P(B|A) = P(A ∩ B) / P(A), provided P(A) > 0.
+
+1.2 Prior, likelihood, posterior, evidence
+- Prior: P(A) = initial probability of hypothesis A before new data.
+- Likelihood: P(B|A) = probability of observing data B assuming A is true.
+- Evidence (marginal): P(B) = total probability of observing B.
+- Posterior: P(A|B) = updated probability of hypothesis A after observing B.
+
+1.3 Other useful facts
+- Multiplication rule: P(A ∩ B) = P(A) P(B|A) = P(B) P(A|B).
+- Independence: If A and B independent, P(A ∩ B) = P(A)P(B) and P(B|A) = P(B).
+
+2. Main formulas
+2.1 Basic conditional probability
+- P(B|A) = P(A ∩ B) / P(A).
+
+2.2 Bayes' theorem (two events / hypothesis)
+- P(A|B) = P(B|A) P(A) / P(B).
+
+2.3 Law of total probability (for partition {A1, A2, ..., An})
+- P(B) = sum over i of P(Ai) P(B|Ai).
+- Use this as the denominator in Bayes' theorem when hypotheses form a partition.
+
+2.4 Generalized Bayes' theorem (n hypotheses A1,...,An)
+- P(Ak|B) = P(Ak) P(B|Ak) / [sum over i of P(Ai) P(B|Ai)].
+
+2.5 Frequency/count form (intuitive/table method)
+- Given counts, P(A|B) = #(A ∩ B) / #(B).
+- To use probabilities, assume total N and compute cell counts: count(A ∩ B) = N × P(A) × P(B|A).
+
+2.6 Symmetry relation
+- P(A|B) P(B) = P(B|A) P(A).
+
+3. Short worked examples
+3.1 Cigar-smoking example (Orange County)
+1 - Given: P(Male)=0.51, P(Female)=0.49.
+2 - Given: P(Cigar|Male)=0.095, P(Cigar|Female)=0.017.
+3 - Compute numerator: P(Male) P(Cigar|Male) = 0.51 × 0.095 = 0.04845.
+4 - Compute denominator: 0.04845 + 0.49 × 0.017 = 0.04845 + 0.00833 = 0.05678.
+5 - Posterior: P(Male|Cigar) = 0.04845 / 0.05678 ≈ 0.853.
+
+3.2 ELT (manufacturers) defective example
+1 - Given priors: P(A)=0.80, P(B)=0.15, P(C)=0.05.
+2 - Given defect rates: P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09.
+3 - Numerator for A: 0.80 × 0.04 = 0.032.
+4 - Denominator: 0.032 + 0.15 × 0.06 + 0.05 × 0.09 = 0.032 + 0.009 + 0.0045 = 0.0455.
+5 - Posterior: P(A|D) = 0.032 / 0.0455 ≈ 0.703.
+
+3.3 Table method (same cigar example with N=100,000)
+- Step 1: Compute counts: males = 51,000, cigar-smoking males = 0.095 × 51,000 = 4,845.
+- Step 2: females = 49,000, cigar-smoking females = 0.017 × 49,000 = 833.
+- Step 3: total cigar-smokers = 4,845 + 833 = 5,678.
+- Step 4: P(Male|Cigar) = 4,845 / 5,678 ≈ 0.853.
+
+4. Important relationships & connections
+- Posterior ∝ Prior × Likelihood: P(A|B) ∝ P(A) P(B|A). The denominator normalizes over all hypotheses.
+- Law of total probability supplies the evidence term required for normalization.
+- Bayes' theorem updates beliefs when new data arrives. Use priors that partition the sample space.
+- Frequency approach (assume an N) reduces algebra errors and aids intuition.
+- Independence simplifies many computations, but do not assume independence unless justified.
+
+5. Quick checklist for applying Bayes' theorem
+1 - Identify hypotheses that partition the sample space: {A1,...,An}.
+2 - Obtain priors P(Ai) for each hypothesis.
+3 - Obtain likelihoods P(B|Ai) for observed data B.
+4 - Compute evidence P(B) = sum_i P(Ai) P(B|Ai).
+5 - Compute posterior for target hypothesis: P(Ak|B) = P(Ak) P(B|Ak) / P(B).
+6 - Optionally verify with a contingency table using an assumed total N.
+
+6. Common pitfalls
+- Forgetting to normalize (omitting P(B)).
+- Using non-partitioned or incomplete set of hypotheses in the denominator.
+- Confusing P(B|A) (likelihood) with P(A|B) (posterior).
+- Applying independence incorrectly.
+
+7. One-line summaries
+- Bayes (two events): P(A|B) = P(B|A) P(A) / P(B).
+- Generalized Bayes: P(Ak|B) = P(Ak) P(B|Ak) / sum_i P(Ai) P(B|Ai).
+- Frequency method: P(A|B) = #(A ∩ B) / #(B).

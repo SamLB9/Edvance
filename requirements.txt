@@ -8,3 +8,4 @@ pypdf
 tiktoken
 unstructured
 streamlit
+jinja2

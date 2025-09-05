@@ -1,0 +1,67 @@
+1. Key definitions
+- Prior probability: initial probability before new information. Example: P(A).
+- Posterior probability: revised probability after new information. Example: P(A|B).
+- Conditional probability: probability of B given A. Formula: P(B|A) = P(A and B)/P(A).
+- Likelihood: P(B|A), the probability of observed data B under hypothesis A.
+- Evidence (marginal probability): P(B), the total probability of B across all hypotheses.
+- Joint probability: P(A and B), probability both A and B occur.
+- Independence: A and B independent if P(A|B) = P(A) (equivalently P(A and B) = P(A)P(B)).
+
+2. Core formulas
+- Conditional probability (definition):
+  P(B|A) = P(A and B)/P(A)
+- Joint probability (equivalent forms):
+  P(A and B) = P(A)P(B|A) = P(B)P(A|B)
+- Bayes' theorem (two events):
+  P(A|B) = P(B|A)P(A) / P(B)
+- Law of total probability (for a partition {Ai}):
+  P(B) = sum_i [ P(B|Ai) P(Ai) ]
+- Generalized Bayes' theorem (for partition {Ai}):
+  P(Ak|B) = P(B|Ak) P(Ak) / sum_i [ P(B|Ai) P(Ai) ]
+
+3. Short application procedure (useful checklist)
+1 - Identify mutually exclusive, exhaustive hypotheses Ai and their priors P(Ai).
+2 - Compute likelihoods P(B|Ai) for the observed evidence B.
+3 - Compute evidence: P(B) = sum_i P(B|Ai)P(Ai).
+4 - Compute posterior for hypothesis Ak: P(Ak|B) = P(B|Ak)P(Ak) / P(B).
+
+4. Intuitive (frequency/table) method
+- Choose a convenient total N (e.g., 100, 1,000, 100,000).
+- Convert priors to counts: count(Ai) = N * P(Ai).
+- Convert likelihoods to counts: count(Ai and B) = count(Ai) * P(B|Ai).
+- Evidence count: count(B) = sum_i count(Ai and B).
+- Posterior as frequency: P(Ak|B) = count(Ak and B) / count(B).
+
+5. Important relationships and notes
+- Posterior = (Likelihood × Prior) / Evidence.
+- Bayes updates beliefs: prior → incorporate data B → posterior.
+- The Law of Total Probability provides the denominator for Bayes' rule.
+- For independent events, Bayes' update is unnecessary: P(A|B) = P(A).
+- Use the frequency method to reduce algebra mistakes.
+
+6. Examples (formula + calculation)
+- Two-group Bayes (cigar example):
+  Given P(Male)=0.51, P(Cigar|Male)=0.095, P(Cigar|Female)=0.017.
+  P(Male|Cigar) = P(Cigar|Male)P(Male) / [P(Cigar|Male)P(Male) + P(Cigar|Female)P(Female)]
+  = 0.095·0.51 / [0.095·0.51 + 0.017·0.49]
+  ≈ 0.04845 / (0.04845 + 0.00833) ≈ 0.853 (≈ 85.3%).
+
+- Three-manufacturer defect example:
+  P(A)=0.80, P(B)=0.15, P(C)=0.05.
+  P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09.
+  P(A|D) = P(D|A)P(A) / [P(D|A)P(A) + P(D|B)P(B) + P(D|C)P(C)]
+  = 0.04·0.80 / (0.04·0.80 + 0.06·0.15 + 0.09·0.05)
+  = 0.032 / (0.032 + 0.009 + 0.0045)
+  = 0.032 / 0.0455 ≈ 0.703 (≈ 70.3%).
+
+7. Quick reference summary (formulas only)
+- P(B|A) = P(A and B)/P(A)
+- P(A and B) = P(A)P(B|A) = P(B)P(A|B)
+- P(A|B) = P(B|A)P(A) / P(B)
+- P(B) = sum_i P(B|Ai)P(Ai)
+- P(Ak|B) = P(B|Ak)P(Ak) / sum_i P(B|Ai)P(Ai)
+
+8. When to use which method
+- Use algebraic Bayes when you have probabilities and want symbolic clarity.
+- Use the frequency/table method for intuitive understanding and to avoid substitution errors.
+- Use generalized Bayes when multiple hypotheses partition the sample space.

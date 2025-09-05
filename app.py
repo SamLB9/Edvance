@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from pathlib import Path
 import time
 from typing import List, Dict, Any
@@ -371,20 +372,249 @@ def progress_tab():
             st.caption("No frequently missed questions yet for this topic.")
 
 
+def summary_tab():
+    st.subheader("📚 Professional PDF Summary Generator")
+    st.write("""
+    Generate beautiful, publication-quality PDF summaries of your course notes using advanced LaTeX formatting.
+    Each summary includes your business branding and professional styling.
+    """)
+    
+    # Add a visual separator
+    st.markdown("---")
+    
+    # Check if vector store is loaded
+    ensure_vectorstore_loaded()
+    
+    # Get list of available notes
+    notes = list_notes()
+    if not notes:
+        st.warning("No notes found. Please upload some notes first in the Upload Notes tab.")
+        return
+    
+    # Create file selection dropdown
+    file_names = [note["file"] for note in notes]
+    selected_file = st.selectbox("Select PDF/Notes to summarize:", file_names)
+    
+    # Focus area input
+    focus = st.text_input("Focus Area/Topic", placeholder="e.g., Bayes theorem, neural networks, calculus derivatives")
+    
+    # Summary type selection
+    summary_type = st.selectbox("Summary Type", ["Comprehensive", "Structured"], 
+                               help="Comprehensive: General summary, Structured: Organized with specific sections")
+    
+    # Generate button
+    if st.button("Generate Summary", disabled=not focus.strip() or not selected_file):
+        if not focus.strip():
+            st.warning("Please enter a focus area.")
+            return
+            
+        with st.spinner("Generating summary..."):
+            try:
+                # Retrieve context for the selected file and focus
+                context = retrieve_context(st.session_state.vs, focus, k=8)
+                
+                if not context.strip():
+                    st.warning("No relevant content found for this focus area. Try a different topic or check if the notes contain relevant information.")
+                    return
+                
+                # Import summary functions
+                from src.summary_engine import generate_enhanced_summary_with_pdf
+                
+                # Generate summary with PDF
+                result = generate_enhanced_summary_with_pdf(context, focus, selected_file, summary_type)
+                
+                if result["status"] == "success":
+                    st.success("✅ Summary generated successfully!")
+                    # Persist result and PDF so preview survives reruns (e.g., slider adjustments)
+                    st.session_state["last_summary_result"] = result
+                    try:
+                        if result.get("pdf_path") and os.path.exists(result["pdf_path"]):
+                            with open(result["pdf_path"], "rb") as pdf_file:
+                                _bytes = pdf_file.read()
+                            import base64
+                            st.session_state["last_pdf_bytes"] = _bytes
+                            st.session_state["last_pdf_base64"] = base64.b64encode(_bytes).decode()
+                            st.session_state["last_pdf_filename"] = result.get("pdf_filename", "summary.pdf")
+                        else:
+                            st.session_state["last_pdf_bytes"] = None
+                            st.session_state["last_pdf_base64"] = None
+                            st.session_state["last_pdf_filename"] = None
+                    except Exception:
+                        st.session_state["last_pdf_bytes"] = None
+                        st.session_state["last_pdf_base64"] = None
+                        st.session_state["last_pdf_filename"] = None
+                    st.rerun()
+                    
+                else:
+                    st.error(f"Error generating summary: {result.get('error', 'Unknown error')}")
+                    
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.exception(e)
+    
+    # Persistent PDF preview (survives widget changes)
+    persisted = st.session_state.get("last_summary_result")
+    if persisted:
+        st.markdown("### 📊 Summary Information")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("🎯 Focus Area", persisted.get("focus", ""))
+        with col2:
+            st.metric("📄 Source Document", persisted.get("pdf_name", ""))
+        with col3:
+            st.metric("📏 Summary Length", f"{persisted.get('summary_length', 0)} chars")
+
+        st.markdown("### 📚 PDF Preview")
+        # Fixed viewer height as requested
+        viewer_height = 1200
+
+        pdf_b64 = st.session_state.get("last_pdf_base64")
+        # Fallback: if base64 missing but a path exists in last result, reload it
+        if not pdf_b64 and persisted.get("pdf_path") and os.path.exists(persisted["pdf_path"]):
+            try:
+                with open(persisted["pdf_path"], "rb") as _f:
+                    _bytes = _f.read()
+                import base64
+                pdf_b64 = base64.b64encode(_bytes).decode()
+                st.session_state["last_pdf_base64"] = pdf_b64
+                st.session_state["last_pdf_bytes"] = _bytes
+                st.session_state["last_pdf_filename"] = os.path.basename(persisted["pdf_path"]) or "summary.pdf"
+            except Exception:
+                pdf_b64 = None
+
+        if pdf_b64:
+            pdf_display = f"""
+            <iframe src=\"data:application/pdf;base64,{pdf_b64}\" 
+                    width=\"100%\" 
+                    height=\"{viewer_height}px\" 
+                    style=\"border: 2px solid #e0e0e0; border-radius: 8px;\">
+            </iframe>
+            """
+            st.markdown(pdf_display, unsafe_allow_html=True)
+
+            st.markdown("### 💾 Download & Save Options")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.session_state.get("last_pdf_bytes"):
+                    st.download_button(
+                        label="📚 Download PDF",
+                        data=st.session_state["last_pdf_bytes"],
+                        file_name=st.session_state.get("last_pdf_filename", "summary.pdf"),
+                        mime="application/pdf",
+                        help="Download the professional LaTeX-generated PDF"
+                    )
+            with col2:
+                summary_text = f"# Course Notes Summary\n\n**Focus Area:** {persisted.get('focus','')}\n**Source:** {persisted.get('pdf_name','')}\n\n{persisted.get('summary','')}"
+                st.download_button(
+                    label="📄 Download Markdown",
+                    data=summary_text,
+                    file_name=f"summary_{persisted.get('focus','').replace(' ', '_')}.md",
+                    mime="text/markdown",
+                    help="Download as Markdown text (backup option)"
+                )
+            with col3:
+                if st.session_state.get("last_pdf_bytes"):
+                    if st.button("💾 Save PDF to Session", help="Keep this PDF accessible in the current session"):
+                        # Save PDF to session state for persistent access
+                        st.session_state["saved_pdfs"] = st.session_state.get("saved_pdfs", [])
+                        pdf_info = {
+                            "filename": st.session_state.get("last_pdf_filename", "summary.pdf"),
+                            "focus": persisted.get('focus', ''),
+                            "source": persisted.get('pdf_name', ''),
+                            "timestamp": persisted.get('timestamp', ''),
+                            "pdf_bytes": st.session_state["last_pdf_bytes"],
+                            "pdf_base64": st.session_state.get("last_pdf_base64", "")
+                        }
+                        st.session_state["saved_pdfs"].append(pdf_info)
+                        st.success(f"✅ PDF saved! ({len(st.session_state['saved_pdfs'])} PDFs in session)")
+                        st.rerun()
+        else:
+            st.warning("PDF preview unavailable. Try regenerating the summary.")
+
+    # Display saved PDFs
+    saved_pdfs = st.session_state.get("saved_pdfs", [])
+    if saved_pdfs:
+        st.markdown("### 📚 Saved PDFs")
+        st.write(f"You have {len(saved_pdfs)} saved PDF(s) in this session:")
+        
+        for i, pdf_info in enumerate(saved_pdfs):
+            with st.expander(f"📄 {pdf_info['filename']} - {pdf_info['focus']}"):
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    st.write(f"**Focus:** {pdf_info['focus']}")
+                    st.write(f"**Source:** {pdf_info['source']}")
+                    st.write(f"**Generated:** {pdf_info['timestamp']}")
+                with col2:
+                    if st.button(f"👁️ View", key=f"view_{i}"):
+                        st.session_state["last_pdf_bytes"] = pdf_info["pdf_bytes"]
+                        st.session_state["last_pdf_base64"] = pdf_info["pdf_base64"]
+                        st.session_state["last_pdf_filename"] = pdf_info["filename"]
+                        st.rerun()
+                with col3:
+                    if st.button(f"🗑️ Remove", key=f"remove_{i}"):
+                        st.session_state["saved_pdfs"].pop(i)
+                        st.success("PDF removed from session")
+                        st.rerun()
+                
+                # Show PDF preview
+                if pdf_info.get("pdf_base64"):
+                    pdf_display = f"""
+                    <iframe src="data:application/pdf;base64,{pdf_info['pdf_base64']}" 
+                            width="100%" 
+                            height="600px" 
+                            style="border: 1px solid #e0e0e0; border-radius: 4px;">
+                    </iframe>
+                    """
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+
+    # Show some tips
+    with st.expander("💡 Tips for Better PDF Summaries"):
+        st.markdown("""
+        - **Be specific**: Instead of 'math', try 'linear algebra' or 'calculus derivatives'
+        - **Use key terms**: Include specific concepts, formulas, or theories you want to focus on
+        - **Check your notes**: Make sure the selected file contains content related to your focus area
+        - **Try different focus areas**: If one doesn't work, try rephrasing or being more specific
+        - **PDF Quality**: Each summary generates a professional LaTeX PDF with your business branding
+        - **Preview First**: Check the PDF preview before downloading to ensure it meets your needs
+        """)
+    
+    # Debug section for troubleshooting
+    with st.expander("🔧 Debug & Troubleshooting"):
+        if st.button("Test LaTeX Compilation"):
+            from src.summary_engine import test_latex_compilation
+            result = test_latex_compilation()
+            if result["success"]:
+                st.success("✅ LaTeX compilation test passed!")
+                st.json(result)
+            else:
+                st.error("❌ LaTeX compilation test failed!")
+                st.json(result)
+        
+        st.markdown("""
+        **Common PDF Generation Issues:**
+        - **LaTeX not installed**: Install TeX Live or MiKTeX
+        - **Permission errors**: Check write access to output directory
+        - **Compilation errors**: Usually content-related, check LaTeX syntax
+        - **File cleanup issues**: Temporary files not being removed properly
+        """)
+
+
 def main():
     st.set_page_config(page_title="Study Coach", layout="wide")
     st.title("Study Coach")
 
     # Persistent navigation to prevent tab reset on rerun
     default_nav = st.session_state.get("nav", "Quiz")
-    selected_nav = st.radio("", ["Upload Notes", "Quiz", "Progress"], index=["Upload Notes", "Quiz", "Progress"].index(default_nav), horizontal=True, key="nav")
+    selected_nav = st.radio("", ["Upload Notes", "Quiz", "Progress", "Summary"], index=["Upload Notes", "Quiz", "Progress", "Summary"].index(default_nav), horizontal=True, key="nav")
 
     if selected_nav == "Upload Notes":
         upload_tab()
     elif selected_nav == "Quiz":
         quiz_tab()
-    else:
+    elif selected_nav == "Progress":
         progress_tab()
+    else:
+        summary_tab()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,126 @@
+\section{Key definitions and concepts}
+\begin{itemize}
+\item Conditional probability: $P(B\mid A)$ is the probability $B$ occurs given $A$ has occurred.
+\item Prior probability: initial probability before new information.
+\item Posterior probability: revised probability after incorporating new information.
+\item Likelihood: $P(\text{new data}\mid\text{hypothesis})$, used to update the prior.
+\item Joint probability: $P(A\cap B)$ is the probability both $A$ and $B$ occur.
+\item Law of total probability: expresses $P(A)$ via a partition of the sample space.
+\end{itemize}
+
+\section{Fundamental formulas}
+\begin{itemize}
+\item Conditional probability (definition)
+\item $$P(B\mid A)=\frac{P(A\cap B)}{P(A)}$$
+\item Symmetric expression for joint probability
+\item $$P(A\cap B)=P(A)\,P(B\mid A)=P(B)\,P(A\mid B)$$
+\item Bayes' theorem (basic two-event form)
+\item $$P(B\mid A)=\frac{P(A\mid B)\,P(B)}{P(A)}$$
+\item Law of total probability (for a partition $B_1,\dots,B_n$)
+\item $$P(A)=\sum_{i=1}^n P(A\mid B_i)\,P(B_i)$$
+\item Bayes' theorem (generalized for a partition $B_1,\dots,B_n$)
+\item $$P(B_j\mid A)=\frac{P(A\mid B_j)\,P(B_j)}{\displaystyle\sum_{i=1}^n P(A\mid B_i)\,P(B_i)}$$
+\end{itemize}
+
+\section{Important relationships and notes}
+\begin{itemize}
+\item Prior $\to$ Likelihood $\to$ Posterior sequence:
+\begin{enumerate}
+\item Start with prior $P(B_j)$.
+\item Use likelihood $P(A\mid B_j)$.
+\item Compute posterior $P(B_j\mid A)$ via Bayes' theorem.
+\end{enumerate}
+\item Normalizing constant in Bayes' rule is $P(A)$ given by the law of total probability.
+\item $P(B\mid A)$ increases when $P(A\mid B)$ is relatively large compared with $P(A\mid\text{other events})$ weighted by priors.
+\item Bayes can be applied with discrete counts or probabilities; both formulations are equivalent.
+\end{itemize}
+
+\section{Intuitive (frequency/table) method}
+\begin{itemize}
+\item Method:
+\begin{enumerate}
+\item Assume a convenient total $N$ (e.g., $1000$ or $100000$).
+\item Convert probabilities to counts: $\text{count}(B_i)=N\cdot P(B_i)$.
+\item Compute cells: $\text{count}(A\cap B_i)=\text{count}(B_i)\cdot P(A\mid B_i)$.
+\item Use counts to compute desired conditional:
+$$P(B_j\mid A)=\frac{\text{count}(A\cap B_j)}{\sum_i \text{count}(A\cap B_i)}.$$
+\end{enumerate}
+\item Advantage: reduces algebra errors, makes denominators explicit.
+\end{itemize}
+
+\section{Worked examples}
+\begin{itemize}
+\item Example A: Orange County cigar smokers
+\begin{itemize}
+\item Given:
+\begin{itemize}
+\item $P(\text{male})=0.51$
+\item $P(\text{female})=0.49$
+\item $P(\text{cigar}\mid\text{male})=0.095$
+\item $P(\text{cigar}\mid\text{female})=0.017$
+\end{itemize}
+\item Bayes calculation:
+\[
+P(\text{male}\mid\text{cigar})
+=\frac{P(\text{cigar}\mid\text{male})\,P(\text{male})}
+{P(\text{cigar}\mid\text{male})\,P(\text{male})+P(\text{cigar}\mid\text{female})\,P(\text{female})}
+=\frac{0.095\cdot 0.51}{0.095\cdot 0.51 + 0.017\cdot 0.49}
+\]
+\[
+=\frac{0.04845}{0.04845+0.00833}\approx\frac{0.04845}{0.05678}\approx 0.853
+\]
+\item Frequency/table check ( $N=100{,}000$):
+\begin{itemize}
+\item males $=51{,}000$; male cigar $=0.095\times 51{,}000=4{,}845$
+\item females $=49{,}000$; female cigar $=0.017\times 49{,}000=833$
+\item total cigar $=4{,}845+833=5{,}678$
+\item $P(\text{male}\mid\text{cigar})=\dfrac{4{,}845}{5{,}678}\approx 0.853$
+\end{itemize}
+\end{itemize}
+
+\item Example B: ELT manufacturers and defectives
+\begin{itemize}
+\item Given:
+\begin{itemize}
+\item $P(A)=0.80,\quad P(B)=0.15,\quad P(C)=0.05$
+\item $P(\text{defective}\mid A)=0.04,\quad P(\text{defective}\mid B)=0.06,\quad P(\text{defective}\mid C)=0.09$
+\end{itemize}
+\item Bayes calculation:
+\[
+P(A\mid \text{defective})
+=\frac{P(\text{defective}\mid A)\,P(A)}
+{P(\text{defective}\mid A)P(A)+P(\text{defective}\mid B)P(B)+P(\text{defective}\mid C)P(C)}
+=\frac{0.04\cdot 0.80}{0.04\cdot 0.80 + 0.06\cdot 0.15 + 0.09\cdot 0.05}
+\]
+\[
+=\frac{0.032}{0.032 + 0.009 + 0.0045}=\frac{0.032}{0.0455}\approx 0.703
+\]
+\item Frequency/table check ($N=10{,}000$):
+\begin{itemize}
+\item $A$ total $=8{,}000$; defective from $A=0.04\times 8{,}000=320$
+\item $B$ total $=1{,}500$; defective from $B=0.06\times 1{,}500=90$
+\item $C$ total $=500$; defective from $C=0.09\times 500=45$
+\item total defective $=320+90+45=455$
+\item $P(A\mid\text{defective})=\dfrac{320}{455}\approx 0.703$
+\end{itemize}
+\end{itemize}
+\end{itemize}
+
+\section{Quick solution checklist (ordered steps)}
+\begin{enumerate}
+\item Identify hypothesis events $B_1,\dots,B_n$ and the observed event $A$.
+\item Record priors $P(B_i)$ and likelihoods $P(A\mid B_i)$.
+\item Compute $P(A)=\sum_i P(A\mid B_i)\,P(B_i)$.
+\item Compute posterior for target $B_j$:
+\[
+P(B_j\mid A)=\frac{P(A\mid B_j)\,P(B_j)}{P(A)}.
+\]
+\item Optionally verify with frequency/table method using a convenient $N$.
+\end{enumerate}
+
+\section{Compact reference formulas (for quick revision)}
+\begin{itemize}
+\item $$P(B\mid A)=\frac{P(A\mid B)\,P(B)}{P(A)}$$
+\item $$P(A)=\sum_{i} P(A\mid B_i)\,P(B_i)$$
+\item $$P(A\cap B)=P(A)\,P(B\mid A)=P(B)\,P(A\mid B)$$
+\end{itemize}

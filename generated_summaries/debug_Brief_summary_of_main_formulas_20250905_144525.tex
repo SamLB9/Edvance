@@ -1,0 +1,170 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{0B6FA4}
+\definecolor{secondary}{HTML}{3A6B8A}
+\definecolor{accent}{HTML}{6E7B8C}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{sectsty}
+\allsectionsfont{\color{primary}\sffamily}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\sffamily\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{secondary}}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{accent}}{\thesubsubsection}{0.6em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\headrule}{\color{lightgray}\hrule height \headrulewidth \vspace{-\headrulewidth}}
+\fancyhead[L]{\sffamily\small Course Notes Summary}
+\fancyhead[C]{\sffamily\small Focus: Brief summary of main formulas}
+\fancyhead[R]{\sffamily\small Source: BayesTheorem.pdf}
+\fancyfoot[L]{\sffamily\small Generated: 2025-09-05 14:45:25}
+\fancyfoot[C]{}
+\fancyfoot[R]{\sffamily\small \thepage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\raggedbottom
+\usepackage{titling}
+\pretitle{\begin{center}\vspace*{1cm}\sffamily}
+\posttitle{\par\end{center}\vskip 0.2em}
+\preauthor{}\postauthor{}
+\predate{}\postdate{}
+% Helper macros used by model output
+\newcommand{\Prob}{\mathrm{P}}
+\newcommand{\given}{\,\mid\,}
+
+\begin{document}
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \vspace*{1cm}
+    {\sffamily\Huge\bfseries\color{primary} Course Notes Summary \par}
+    \vspace{0.8em}
+    {\sffamily\Large\color{secondary} Focus Area: Brief summary of main formulas \par}
+    \vspace{1.5em}
+    \begin{tcolorbox}[enhanced,width=0.75\textwidth,colback=lightgray,colframe=primary,boxrule=0.8pt,sharp corners,left=6pt,right=6pt,top=6pt,bottom=6pt]\vspace{0.5em}
+      \sffamily
+      \begin{tabular}{@{}p{0.28\textwidth} p{0.62\textwidth}@{}}
+        \textbf{Source: } & BayesTheorem.pdf \\
+        \textbf{Generated:} & 2025-09-05 14:45:25 \\
+        \textbf{Summary Type:} & Comprehensive \\
+      \end{tabular}
+    \end{tcolorbox}
+
+    \vspace{1.5em}
+    {\small\sffamily Prepared for quick revision and reference\par}
+    \vfill
+
+    {\small\sffamily \color{accent} Use this sheet as a step-by-step guide when solving problems.}
+    \vspace{1.8cm}
+  \end{center}
+\end{titlepage}
+
+
+Brief summary of main formulas — Bayes’ theorem (study notes)
+
+1. Core definitions
+- Event intersection: A ∩ B = both A and B occur.
+- Conditional probability: P(B | A) = probability B occurs given A has occurred.
+- Prior probability: the initial probability of an event before new evidence (notation: P(A)).
+- Posterior probability: the revised probability after observing evidence (notation: P(A | B)).
+- Likelihood: P(B | A) — probability of observed evidence B under hypothesis A.
+
+2. Fundamental formulas
+- Conditional probability (definition)
+  - P(B | A) = P(A ∩ B) / P(A), provided P(A) > 0.
+
+- Symmetry for intersection
+  - P(A ∩ B) = P(A) P(B | A) = P(B) P(A | B).
+
+- Bayes’ theorem (basic two-event form)
+  - P(A | B) = [P(A) P(B | A)] / P(B).
+
+- Law of total probability (useful for the denominator)
+  - If {A1, A2, …, Ak} is a partition (mutually exclusive and exhaustive), then
+    - P(B) = Σ_{i=1}^k P(Ai) P(B | Ai).
+
+- Bayes’ theorem (generalized / k events / partition form)
+  - For Aj in a partition {A1, …, Ak},
+    - P(Aj | B) = [P(Aj) P(B | Aj)] / Σ_{i=1}^k P(Ai) P(B | Ai).
+
+3. Derivation idea (short)
+- From P(A ∩ B) = P(A) P(B | A) = P(B) P(A | B) ⇒ P(A | B) = P(A) P(B | A) / P(B).
+- Denominator P(B) expanded by law of total probability when multiple causes exist.
+
+4. Intuitive / counting method (recommended for calculation)
+- Steps:
+  1. Choose a convenient total population N (e.g., 100, 1,000 or 10,000).
+  2. Convert priors P(Ai) into counts: count(Ai) = N × P(Ai).
+  3. For each Ai, compute counts of evidence B: count(Ai and B) = count(Ai) × P(B | Ai).
+  4. Sum counts for B: count(B) = Σ count(Ai and B).
+  5. Posterior P(Aj | B) = count(Aj and B) / count(B).
+- This produces the same numeric result as the formula and is less error-prone.
+
+5. Worked examples (compact)
+
+Example A — Industrial quality (ELT manufacturers)
+- Given:
+  - P(A)=0.80, P(B)=0.15, P(C)=0.05
+  - P(D | A)=0.04, P(D | B)=0.06, P(D | C)=0.09 (D = defective)
+- Using Bayes’ theorem for P(A | D):
+  - Numerator = 0.80 × 0.04 = 0.032
+  - Denominator = 0.032 + (0.15 × 0.06) + (0.05 × 0.09) = 0.032 + 0.009 + 0.0045 = 0.0455
+  - P(A | D) = 0.032 / 0.0455 ≈ 0.703
+- Counting method (N = 10,000) gives the same: 320 defective from A out of 455 total defective ⇒ 320/455 ≈ 0.703.
+
+Example B — Smoking and gender (Orange County)
+- Given:
+  - P(Male)=0.51, P(Female)=0.49
+  - P(Cigar | Male)=0.095, P(Cigar | Female)=0.017
+- Compute P(Male | Cigar):
+  - Numerator = 0.51 × 0.095 = 0.04845
+  - Denominator = 0.04845 + (0.49 × 0.017 = 0.00833) = 0.05678
+  - P(Male | Cigar) ≈ 0.04845 / 0.05678 ≈ 0.854
+- Counting method (N = 100,000) — 4,845 cigar-smoking males / 5,678 total cigar smokers ⇒ ≈ 0.854.
+
+6. Important relationships & insights
+- Posterior ∝ Prior × Likelihood:
+  - P(Aj | B) ∝ P(Aj) × P(B | Aj). Normalize by dividing by Σ_i P(Ai) P(B | Ai).
+- Bayes’ theorem is a formal statement of updating belief about hypotheses Aj after observing evidence B.
+- Law of total probability is essential to compute the marginal probability of evidence P(B).
+- When the partition is only {A, A^c}, the generalized formula reduces to the two-event form.
+
+7. Common conditions and pitfalls
+- Denominator must be > 0 (P(B) ≠ 0).
+- The set {A1,...,Ak} used in the denominator must be mutually exclusive and collectively exhaustive (a partition).
+- Confuse P(B | A) with P(A | B) — they are generally not equal.
+- Use counts/intuitive table to reduce algebraic substitution errors.
+
+8. Quick checklist for solving Bayes problems
+1. Identify hypotheses Aj and evidence/event B.
+2. Write priors P(Aj) and likelihoods P(B | Aj).
+3. Compute marginal P(B) = Σ P(Ai) P(B | Ai).
+4. Compute posterior P(Aj | B) = P(Aj) P(B | Aj) / P(B).
+5. Optionally, verify with a counting/table approach.
+
+9. Useful mnemonic
+- “Posterior ∝ Prior × Likelihood” — multiply prior probability by how likely the evidence is under that hypothesis, then normalize.
+
+Use this sheet to revise formulas quickly and to guide computations; when in doubt, convert probabilities to counts and construct a small contingency table — it’s often the fastest, least error-prone route.
+
+\end{document}

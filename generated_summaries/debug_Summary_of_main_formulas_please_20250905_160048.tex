@@ -1,0 +1,198 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{0B6FA4}
+\definecolor{secondary}{HTML}{3A6B8A}
+\definecolor{accent}{HTML}{6E7B8C}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{sectsty}
+\allsectionsfont{\color{primary}\sffamily}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\sffamily\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{secondary}}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{accent}}{\thesubsubsection}{0.6em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\headrule}{\color{lightgray}\hrule height \headrulewidth \vspace{-\headrulewidth}}
+\fancyhead[L]{\sffamily\small Course Notes Summary}
+\fancyhead[C]{\sffamily\small Focus: Summary of main formulas please}
+\fancyhead[R]{\sffamily\small Source: BayesTheorem.pdf}
+\fancyfoot[L]{\sffamily\small Generated: 2025-09-05 16:00:48}
+\fancyfoot[C]{}
+\fancyfoot[R]{\sffamily\small \thepage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\raggedbottom
+\usepackage{titling}
+\pretitle{\begin{center}\vspace*{1cm}\sffamily}
+\posttitle{\par\end{center}\vskip 0.2em}
+\preauthor{}\postauthor{}
+\predate{}\postdate{}
+% Helper macros used by model output
+\newcommand{\Prob}{\mathrm{P}}
+\newcommand{\given}{\,\mid\,}
+
+\begin{document}
+
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \vspace*{1cm}
+    \includegraphics[width=0.3\textwidth]{16.png}
+    \vspace{1em}
+    {\sffamily\Huge\bfseries\color{primary} Course Notes Summary \par}
+    \vspace{0.8em}
+    {\sffamily\Large\color{secondary} Focus Area: Summary of main formulas please \par}
+    \vspace{1.5em}
+    \begin{tcolorbox}[enhanced,width=0.75\textwidth,colback=lightgray,colframe=primary,boxrule=0.8pt,sharp corners,left=6pt,right=6pt,top=6pt,bottom=6pt]\vspace{0.5em}
+      \sffamily
+      \begin{tabular}{@{}p{0.28\textwidth} p{0.62\textwidth}@{}}
+        \textbf{Source: } & BayesTheorem.pdf \\
+        \textbf{Generated:} & 2025-09-05 16:00:48 \\
+        \textbf{Summary Type:} & Comprehensive \\
+      \end{tabular}
+    \end{tcolorbox}
+
+    \vspace{1.5em}
+    {\small\sffamily Prepared for quick revision and reference\par}
+    \vfill
+
+    {\small\sffamily \color{accent} Use this sheet as a step-by-step guide when solving problems.}
+    \vspace{1.8cm}
+  \end{center}
+\end{titlepage}
+
+\section{Fundamental definitions}
+\begin{itemize}
+\item Prior probability: initial probability before new information.
+\item Posterior probability: probability revised after new information.
+\item Conditional probability: probability of $B$ given $A$ has occurred.
+\item Partition: a set of mutually exclusive, exhaustive events $A_1,\ldots,A_n$.
+\end{itemize}
+
+\section{Core formulas}
+
+\subsection{Conditional probability}
+\begin{itemize}
+\item $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$, for $P(A)>0$.
+\item Equivalent product form: $P(A\cap B)=P(A)\,P(B\mid A)=P(B)\,P(A\mid B)$.
+\end{itemize}
+
+\subsection{Two-event Bayes' theorem}
+\begin{itemize}
+\item $P(A\mid B)=\dfrac{P(B\mid A)\,P(A)}{P(B)}$, provided $P(B)>0$.
+\item Law of total probability for denominator (two events $A$ and $A^c$):
+\[
+P(B)=P(B\mid A)\,P(A)+P(B\mid A^c)\,P(A^c).
+\]
+\end{itemize}
+
+\subsection{Generalized (n-event) Bayes' theorem}
+\begin{itemize}
+\item Law of total probability (partition $A_1,\ldots,A_n$):
+\[
+P(B)=\sum_{i=1}^n P(B\mid A_i)\,P(A_i).
+\]
+\item General Bayes formula for $A_j$ in partition:
+\[
+P(A_j\mid B)=\frac{P(B\mid A_j)\,P(A_j)}{\displaystyle\sum_{i=1}^n P(B\mid A_i)\,P(A_i)}.
+\]
+\end{itemize}
+
+\subsection{Intuitive / frequency (tree-table) method}
+\begin{itemize}
+\item Choose a convenient total $N$ (e.g., $N=100{,}000$).
+\item Compute cell counts: $\text{count}(A_i\cap B)=N\,P(A_i)\,P(B\mid A_i)$.
+\item Use counts to get posterior:
+\[
+P(A_j\mid B)=\frac{\text{count}(A_j\cap B)}{\sum_i \text{count}(A_i\cap B)}.
+\]
+\end{itemize}
+
+\section{Short worked examples}
+
+\subsection{Cigar-smoking example (two-category)}
+\begin{itemize}
+\item Given: $P(\text{male})=0.51$, $P(\text{cigar}\mid\text{male})=0.095$, $P(\text{cigar}\mid\text{female})=0.017$.
+\item Denominator:
+\[
+P(\text{cigar})=0.095\times 0.51 + 0.017\times 0.49 = 0.04845 + 0.00833 = 0.05678.
+\]
+\item Posterior:
+\[
+P(\text{male}\mid\text{cigar})=\frac{0.095\times 0.51}{0.05678}\approx\frac{0.04845}{0.05678}\approx 0.854.
+\]
+\item Frequency check ($N=100{,}000$): males smoking $=100{,}000\times 0.51\times 0.095=4{,}845$; females smoking $=100{,}000\times 0.49\times 0.017=833$; total $=5{,}678$; ratio $=4{,}845/5{,}678\approx 0.854$.
+\end{itemize}
+
+\subsection{ELT manufacturers (three-category)}
+\begin{itemize}
+\item Given: $P(A)=0.80$, $P(B)=0.15$, $P(C)=0.05$.
+\item Defective rates: $P(D\mid A)=0.04$, $P(D\mid B)=0.06$, $P(D\mid C)=0.09$.
+\item Numerator for $A$: $0.80\times 0.04 = 0.032$.
+\item Denominator:
+\[
+0.032 + 0.15\times 0.06 + 0.05\times 0.09 = 0.032 + 0.009 + 0.0045 = 0.0455.
+\]
+\item Posterior:
+\[
+P(A\mid D)=\frac{0.032}{0.0455}\approx 0.703.
+\]
+\item Frequency check ($N=10{,}000$): defective from $A=10{,}000\times 0.80\times 0.04=320$; total defective $=455$; ratio $=320/455\approx 0.703$.
+\end{itemize}
+
+\section{Key relationships and connections}
+\begin{itemize}
+\item Bayes updates prior to posterior using likelihood $P(B\mid A_i)$.
+\item Denominator always equals weighted sum of likelihoods across partition (law of total probability).
+\item Product rule links joint and conditional probabilities: $P(A\cap B)=P(A)\,P(B\mid A)$.
+\item Using frequencies reduces algebra mistakes and improves intuition.
+\end{itemize}
+
+\section{Quick application checklist (ordered steps)}
+\begin{enumerate}
+\item Identify hypotheses/partitions $A_1,\ldots,A_n$ and the observed event $B$.
+\item Collect priors $P(A_i)$ and likelihoods $P(B\mid A_i)$.
+\item Compute denominator: $\sum_i P(B\mid A_i)\,P(A_i)$.
+\item Compute posterior for desired $A_j$: $P(A_j\mid B)=\dfrac{P(B\mid A_j)\,P(A_j)}{\text{denominator}}$.
+\item Optionally verify with a frequency table using a chosen $N$.
+\end{enumerate}
+
+\section{Common pitfalls and notes}
+\begin{itemize}
+\item Ensure events $A_i$ form a partition (mutually exclusive and exhaustive).
+\item Check that $P(B)$ (denominator) $>0$ before dividing.
+\item Distinguish $P(B\mid A)$ (likelihood) from $P(A\mid B)$ (posterior).
+\item Use the frequency method to avoid algebraic substitution errors.
+\end{itemize}
+
+\section{Compact formula summary (for quick revision)}
+\begin{itemize}
+\item Conditional: $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$.
+\item Product: $P(A\cap B)=P(A)\,P(B\mid A)$.
+\item Bayes (two-event): $P(A\mid B)=\dfrac{P(B\mid A)\,P(A)}{P(B)}$.
+\item Total prob. (partition): $P(B)=\sum_i P(B\mid A_i)\,P(A_i)$.
+\item Bayes (general): $P(A_j\mid B)=\dfrac{P(B\mid A_j)\,P(A_j)}{\displaystyle\sum_i P(B\mid A_i)\,P(A_i)}$.
+\end{itemize}
+
+\end{document}

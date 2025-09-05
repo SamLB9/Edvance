@@ -1,0 +1,123 @@
+\section{Section 1.}
+\subsection{Subsection 1.1}
+\begin{itemize}
+\item Key definitions
+  \begin{itemize}
+  \item Prior probability: initial probability before new information (e.g., $P(A)$).
+  \item Posterior probability: revised probability after incorporating new information (e.g., $P(A\mid B)$).
+  \item Likelihood: probability of observed evidence given a hypothesis (e.g., $P(B\mid A)$).
+  \item Marginal (or total) probability: overall probability of evidence (e.g., $P(B)$).
+  \item Conditional probability: probability of one event given another ($P(B\mid A)$).
+  \end{itemize}
+\item Fundamental formulas
+  \begin{itemize}
+  \item Conditional probability (definition):
+    \begin{itemize}
+    \item $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$
+    \end{itemize}
+  \item Product rule (relates joint and conditional probabilities):
+    \begin{itemize}
+    \item $P(A\cap B)=P(A)P(B\mid A)=P(B)P(A\mid B)$
+    \end{itemize}
+  \item Independence criterion:
+    \begin{itemize}
+    \item $A$ and $B$ independent $\Leftrightarrow\ P(A\cap B)=P(A)P(B)$
+    \item Equivalently $P(B\mid A)=P(B)$ (when independent)
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\subsection{Subsection 1.2}
+\begin{itemize}
+\item Bayes' theorem (two events)
+  \begin{itemize}
+  \item $P(A\mid B)=\dfrac{P(B\mid A)P(A)}{P(B)}$
+  \item Use when you want posterior $P(A\mid B)$ and you know prior $P(A)$ and likelihood $P(B\mid A)$.
+  \end{itemize}
+\item Law of total probability (two-event form):
+  \begin{itemize}
+  \item $P(B)=P(A)P(B\mid A)+P(A^{c})P(B\mid A^{c})$
+  \end{itemize}
+\item Generalized Bayes (partition $A_1,\dots,A_n$)
+  \begin{itemize}
+  \item Law of total probability (general):
+    \begin{itemize}
+    \item $P(B)=\sum_i P(A_i)P(B\mid A_i)$
+    \end{itemize}
+  \item Bayes' theorem (generalized):
+    \begin{itemize}
+    \item $P(A_k\mid B)=\dfrac{P(A_k)P(B\mid A_k)}{\sum_i P(A_i)P(B\mid A_i)}$
+    \end{itemize}
+  \item Compact relationship (proportional form):
+    \begin{itemize}
+    \item $P(A_k\mid B)\propto P(A_k)\,P(B\mid A_k)$ (normalize by sum over $k$)
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
+\section{Section 2.}
+\subsection{Subsection 2.1}
+\begin{itemize}
+\item Stepwise procedure to apply Bayes' theorem (ordered)
+  \begin{enumerate}
+  \item List hypotheses (partition) $A_1,\dots,A_n$ and their priors $P(A_i)$.
+  \item For each hypothesis, list the likelihood $P(B\mid A_i)$.
+  \item Compute marginal $P(B)=\sum_i P(A_i)P(B\mid A_i)$.
+  \item Compute posterior $P(A_k\mid B)=\dfrac{P(A_k)P(B\mid A_k)}{P(B)}$.
+  \end{enumerate}
+\item Intuitive (frequency/table) method
+  \begin{itemize}
+  \item Assume a convenient total $N$ (e.g., $1000$ or $100000$).
+  \item Convert priors to counts: $\text{count}(A_i)=N\cdot P(A_i)$.
+  \item For each $A_i$, compute $\text{count}(A_i\land B)=\text{count}(A_i)\cdot P(B\mid A_i)$.
+  \item Marginal $\text{count}(B)=\sum_i \text{count}(A_i\land B)$.
+  \item Posterior $= \dfrac{\text{count}(A_k\land B)}{\text{count}(B)}$.
+  \end{itemize}
+\item Short example 1 (Orange County cigar smokers)
+  \begin{itemize}
+  \item Given: $P(\text{male})=0.51$, $P(\text{cigar}\mid\text{male})=0.095$, $P(\text{cigar}\mid\text{female})=0.017$.
+  \item Compute $P(\text{male}\mid\text{cigar})$:
+    \begin{itemize}
+    \item Numerator $=0.095\times 0.51=0.04845$
+    \item Denominator $=0.04845 + 0.017\times 0.49 = 0.04845 + 0.00833 = 0.05678$
+    \item $P(\text{male}\mid\text{cigar})=\dfrac{0.04845}{0.05678}\approx 0.853$
+    \end{itemize}
+  \end{itemize}
+\item Short example 2 (ELT manufacturers and defectives)
+  \begin{itemize}
+  \item Given: $P(A)=0.80$, $P(B)=0.15$, $P(C)=0.05$; defect rates $P(D\mid A)=0.04$, $P(D\mid B)=0.06$, $P(D\mid C)=0.09$.
+  \item Compute $P(A\mid D)$:
+    \begin{itemize}
+    \item Numerator $=0.80\times 0.04 = 0.032$
+    \item Denominator $=0.032 + 0.15\times 0.06 + 0.05\times 0.09 = 0.032 + 0.009 + 0.0045 = 0.0455$
+    \item $P(A\mid D)=\dfrac{0.032}{0.0455}\approx 0.703$
+    \end{itemize}
+  \item Equivalent frequency-table example ($N=10{,}000$): defective counts $A=320$, $B=90$, $C=45$, total defective $=455$ $\Rightarrow$ $P(A\mid D)=320/455\approx 0.703$.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Subsection 2.2}
+\begin{itemize}
+\item Important relationships and connections
+  \begin{itemize}
+  \item Prior $\to$ Likelihood $\to$ Posterior: Bayes updates prior by weighting it with the likelihood of observed evidence.
+  \item Denominator role: $P(B)$ is the marginal likelihood; it ensures posterior probabilities sum to $1$ across hypotheses.
+  \item Proportionality: Posterior is proportional to prior $\times$ likelihood; normalization uses total probability.
+  \item Generalization: Bayes works with any finite partition of hypotheses; use law of total probability for the denominator.
+  \end{itemize}
+\item Practical tips and common pitfalls
+  \begin{itemize}
+  \item Tip: Use the frequency/table method when formulas feel error-prone; it is less error-prone and intuitive.
+  \item Tip: Keep track of which event is the hypothesis ($A_i$) and which is the evidence ($B$).
+  \item Pitfall: Confusing $P(B\mid A)$ (likelihood) with $P(A\mid B)$ (posterior).
+  \item Pitfall: Forgetting to include all partition events in the denominator (use full partition).
+  \end{itemize}
+\item Compact summary of main formulas (for quick revision)
+  \begin{itemize}
+  \item $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$
+  \item $P(A\cap B)=P(A)P(B\mid A)=P(B)P(A\mid B)$
+  \item $P(A\mid B)=\dfrac{P(B\mid A)P(A)}{P(B)}$
+  \item $P(B)=\sum_i P(A_i)P(B\mid A_i)$
+  \item $P(A_k\mid B)=\dfrac{P(A_k)P(B\mid A_k)}{\sum_i P(A_i)P(B\mid A_i)}$
+  \end{itemize}
+\end{itemize}

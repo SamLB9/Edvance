@@ -1,0 +1,82 @@
+SUMMARY: MAIN FORMULAS FOR BAYES’ THEOREM (concise study sheet)
+
+1. KEY DEFINITIONS
+- Conditional probability: P(B | A) = probability B occurs given A has occurred.
+- Prior probability: P(A) — the initial probability of hypothesis/event A before new evidence.
+- Likelihood: P(E | A) — probability of observing evidence E if A is true.
+- Posterior probability: P(A | E) — updated probability of A after observing evidence E.
+- Evidence (marginal probability): P(E) — total probability of observing E under all hypotheses.
+
+2. CORE FORMULAS (quick reference)
+- Definition of conditional probability:
+  P(B | A) = P(A ∩ B) / P(A) , provided P(A) > 0
+
+- Law of total probability (for a partition A1, A2, ..., An):
+  P(E) = Σ_{i=1..n} P(A_i) P(E | A_i)
+
+- Bayes’ theorem (general form for hypothesis A_i given evidence E):
+  P(A_i | E) = [ P(A_i) P(E | A_i) ] / [ Σ_{j=1..n} P(A_j) P(E | A_j) ]
+
+- Two-hypothesis (A and not A) Bayes formula:
+  P(A | E) = P(A) P(E | A) / [ P(A) P(E | A) + P(¬A) P(E | ¬A) ]
+
+- Odds form (useful for comparing two hypotheses A vs ¬A):
+  Posterior odds = Prior odds × Likelihood ratio
+  [P(A | E) / P(¬A | E)] = [P(A) / P(¬A)] × [P(E | A) / P(E | ¬A)]
+
+3. STEP-BY-STEP PROCEDURE FOR APPLYING BAYES
+1. Identify hypotheses (A1, A2, …, An) and which one you want posterior for.
+2. Obtain priors P(A_i) for each hypothesis.
+3. Obtain likelihoods P(E | A_i) for the observed evidence E.
+4. Compute evidence: P(E) = Σ P(A_i) P(E | A_i).
+5. Compute posterior: P(A_k | E) = P(A_k) P(E | A_k) / P(E).
+6. (Optional) Convert to odds if comparing two hypotheses.
+
+4. INTUITIVE / FREQUENTIST APPROACH (useful for checking)
+- Choose a convenient total N (e.g., 1000 or 100,000).
+- Compute expected counts: count(A_i) = N × P(A_i); count(E ∩ A_i) = count(A_i) × P(E | A_i).
+- Evidence count = Σ count(E ∩ A_i).
+- Posterior = count(E ∩ A_k) / evidence count.
+- This method avoids algebra errors and is easy for practice.
+
+5. EXAMPLES (worked, stepwise)
+
+Example A — ELT defect (from text)
+- Hypotheses: A = Altigauge (P(A)=0.80), B = Bryant (P(B)=0.15), C = Chartair (P(C)=0.05)
+- Likelihoods (defective D): P(D | A)=0.04, P(D | B)=0.06, P(D | C)=0.09
+- Evidence P(D) = 0.80×0.04 + 0.15×0.06 + 0.05×0.09 = 0.032 + 0.009 + 0.0045 = 0.0455
+- Posterior P(A | D) = 0.032 / 0.0455 ≈ 0.703 (≈70.3%)
+
+Example B — Cigar smokers (Orange County)
+- Priors: P(male)=0.51, P(female)=0.49
+- Likelihoods: P(cigar | male)=0.095, P(cigar | female)=0.017
+- Evidence P(cigar) = 0.51×0.095 + 0.49×0.017 = 0.04845 + 0.00833 = 0.05678
+- Posterior P(male | cigar) = 0.04845 / 0.05678 ≈ 0.8529 (≈85.3%)
+- Frequentist check with N=100,000: cigar-smoking males = 4,845; cigar-smoking females = 833; posterior = 4,845/(4,845+833) ≈ 0.8529
+
+6. IMPORTANT RELATIONSHIPS & REMINDERS
+- Posterior depends on both prior and likelihood. Large likelihood ratio can overcome a small prior.
+- Law of total probability is required to compute evidence in the denominator of Bayes’ formula.
+- For mutually exclusive and exhaustive hypotheses A_i, Σ P(A_i) = 1.
+- Use consistent units (decimals vs percentages) throughout computations.
+- The intuitive counts/table method is often less error-prone than plugging into formulas.
+
+7. COMMON PITFALLS
+- Forgetting to compute the evidence (denominator) as the total probability of the evidence.
+- Mixing up P(E | A) and P(A | E). These are not the same.
+- Using non-exhaustive or overlapping hypotheses without adjusting structure (hypotheses should partition the sample space).
+- Rounding too early in intermediate steps; carry precision until final answer.
+
+8. QUICK CHEAT-SHEET (copyable)
+- P(B | A) = P(A ∩ B) / P(A)
+- P(E) = Σ P(A_i) P(E | A_i)
+- P(A_i | E) = P(A_i) P(E | A_i) / P(E)
+- Odds form: posterior odds = prior odds × likelihood ratio
+
+9. STUDY & REVISION TIPS
+- Practice both algebraic and frequency-table solutions for the same problem.
+- Always label events clearly (what is hypothesis, what is evidence).
+- Solve small numerical examples (two-hypothesis and multiple-hypothesis) until steps are routine.
+- Memorize the structure: prior × likelihood → normalize by evidence → posterior.
+
+If you want, I can convert this into a one-page printable cheat-sheet (compact layout) or make 5–10 flashcards with example problems and solutions.

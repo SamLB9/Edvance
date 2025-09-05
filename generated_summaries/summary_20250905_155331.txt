@@ -1,0 +1,73 @@
+Section 1.
+  - Subsection 1.1
+    - Key definitions
+      - Prior probability: initial probability before new information (e.g., P(A)).
+      - Posterior probability: revised probability after incorporating new information (e.g., P(A|B)).
+      - Likelihood: probability of observed evidence given a hypothesis (e.g., P(B|A)).
+      - Marginal (or total) probability: overall probability of evidence (e.g., P(B)).
+      - Conditional probability: probability of one event given another (P(B|A)).
+    - Fundamental formulas
+      - Conditional probability (definition):
+        - P(B|A) = P(A and B) / P(A)
+      - Product rule (relates joint and conditional probabilities):
+        - P(A and B) = P(A)P(B|A) = P(B)P(A|B)
+      - Independence criterion:
+        - A and B independent ⇔ P(A and B) = P(A)P(B)
+        - Equivalently P(B|A) = P(B) (when independent)
+  - Subsection 1.2
+    - Bayes' theorem (two events)
+      - P(A|B) = P(B|A)P(A) / P(B)
+      - Use when you want posterior P(A|B) and you know prior P(A) and likelihood P(B|A).
+    - Law of total probability (two-event form):
+      - P(B) = P(A)P(B|A) + P(A^c)P(B|A^c)
+    - Generalized Bayes (partition A1,...,An)
+      - Law of total probability (general):
+        - P(B) = sum over i of [ P(Ai) P(B|Ai) ]
+      - Bayes' theorem (generalized):
+        - P(Ak|B) = P(Ak)P(B|Ak) / [ sum over i of P(Ai)P(B|Ai) ]
+      - Compact relationship (proportional form):
+        - P(Ak|B) ∝ P(Ak) P(B|Ak)  (normalize by sum over k)
+
+Section 2.
+  - Subsection 2.1
+    - Stepwise procedure to apply Bayes' theorem (ordered)
+      1 - List hypotheses (partition) A1,...,An and their priors P(Ai).
+      2 - For each hypothesis, list the likelihood P(B|Ai).
+      3 - Compute marginal P(B) = sum_i P(Ai)P(B|Ai).
+      4 - Compute posterior P(Ak|B) = P(Ak)P(B|Ak) / P(B).
+    - Intuitive (frequency/table) method
+      - Assume a convenient total N (e.g., 1000 or 100000).
+      - Convert priors to counts: count(Ai) = N * P(Ai).
+      - For each Ai, compute count(Ai and B) = count(Ai) * P(B|Ai).
+      - Marginal count(B) = sum_i count(Ai and B).
+      - Posterior = count(Ak and B) / count(B).
+    - Short example 1 (Orange County cigar smokers)
+      - Given: P(male)=0.51, P(cigar|male)=0.095, P(cigar|female)=0.017.
+      - Compute P(male|cigar):
+        - Numerator = 0.095 * 0.51 = 0.04845
+        - Denominator = 0.04845 + 0.017 * 0.49 = 0.04845 + 0.00833 = 0.05678
+        - P(male|cigar) = 0.04845 / 0.05678 ≈ 0.853
+    - Short example 2 (ELT manufacturers and defectives)
+      - Given: P(A)=0.80, P(B)=0.15, P(C)=0.05; defect rates P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09.
+      - Compute P(A|D):
+        - Numerator = 0.80 * 0.04 = 0.032
+        - Denominator = 0.032 + 0.15*0.06 + 0.05*0.09 = 0.032 + 0.009 + 0.0045 = 0.0455
+        - P(A|D) = 0.032 / 0.0455 ≈ 0.703
+      - Equivalent frequency-table example (N = 10,000): defective counts A=320, B=90, C=45, total defective=455 ⇒ P(A|D)=320/455 ≈ 0.703
+  - Subsection 2.2
+    - Important relationships and connections
+      - Prior → Likelihood → Posterior: Bayes updates prior by weighting it with the likelihood of observed evidence.
+      - Denominator role: P(B) is the marginal likelihood; it ensures posterior probabilities sum to 1 across hypotheses.
+      - Proportionality: Posterior is proportional to prior × likelihood; normalization uses total probability.
+      - Generalization: Bayes works with any finite partition of hypotheses; use law of total probability for the denominator.
+    - Practical tips and common pitfalls
+      - Tip: Use the frequency/table method when formulas feel error-prone; it is less error-prone and intuitive.
+      - Tip: Keep track of which event is the hypothesis (Ai) and which is the evidence (B).
+      - Pitfall: Confusing P(B|A) (likelihood) with P(A|B) (posterior).
+      - Pitfall: Forgetting to include all partition events in the denominator (use full partition).
+    - Compact summary of main formulas (for quick revision)
+      - P(B|A) = P(A and B) / P(A)
+      - P(A and B) = P(A)P(B|A) = P(B)P(A|B)
+      - P(A|B) = P(B|A)P(A) / P(B)
+      - P(B) = sum_i P(Ai)P(B|Ai)
+      - P(Ak|B) = P(Ak)P(B|Ak) / [ sum_i P(Ai)P(B|Ai) ]

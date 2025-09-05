@@ -1,0 +1,194 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{0B6FA4}
+\definecolor{secondary}{HTML}{3A6B8A}
+\definecolor{accent}{HTML}{6E7B8C}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{sectsty}
+\allsectionsfont{\color{primary}\sffamily}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\sffamily\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{secondary}}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{accent}}{\thesubsubsection}{0.6em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\headrule}{\color{lightgray}\hrule height \headrulewidth \vspace{-\headrulewidth}}
+\fancyhead[L]{\sffamily\small Course Notes Summary}
+\fancyhead[C]{\sffamily\small Focus: Summary of main formulas please}
+\fancyhead[R]{\sffamily\small Source: BayesTheorem.pdf}
+\fancyfoot[L]{\sffamily\small Generated: 2025-09-05 15:40:56}
+\fancyfoot[C]{}
+\fancyfoot[R]{\sffamily\small \thepage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\raggedbottom
+\usepackage{titling}
+\pretitle{\begin{center}\vspace*{1cm}\sffamily}
+\posttitle{\par\end{center}\vskip 0.2em}
+\preauthor{}\postauthor{}
+\predate{}\postdate{}
+% Helper macros used by model output
+\newcommand{\Prob}{\mathrm{P}}
+\newcommand{\given}{\,\mid\,}
+
+\begin{document}
+
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \vspace*{1cm}
+    \includegraphics[width=0.3\textwidth]{16.png}
+    \vspace{1em}
+    {\sffamily\Huge\bfseries\color{primary} Course Notes Summary \par}
+    \vspace{0.8em}
+    {\sffamily\Large\color{secondary} Focus Area: Summary of main formulas please \par}
+    \vspace{1.5em}
+    \begin{tcolorbox}[enhanced,width=0.75\textwidth,colback=lightgray,colframe=primary,boxrule=0.8pt,sharp corners,left=6pt,right=6pt,top=6pt,bottom=6pt]\vspace{0.5em}
+      \sffamily
+      \begin{tabular}{@{}p{0.28\textwidth} p{0.62\textwidth}@{}}
+        \textbf{Source: } & BayesTheorem.pdf \\
+        \textbf{Generated:} & 2025-09-05 15:40:56 \\
+        \textbf{Summary Type:} & Comprehensive \\
+      \end{tabular}
+    \end{tcolorbox}
+
+    \vspace{1.5em}
+    {\small\sffamily Prepared for quick revision and reference\par}
+    \vfill
+
+    {\small\sffamily \color{accent} Use this sheet as a step-by-step guide when solving problems.}
+    \vspace{1.8cm}
+  \end{center}
+\end{titlepage}
+
+\section{SUMMARY: MAIN FORMULAS FOR BAYES' THEOREM (concise study sheet)}
+
+\section{KEY DEFINITIONS}
+\begin{itemize}
+\item Conditional probability: $P(B\mid A)=\text{probability that }B\text{ occurs given }A\text{ has occurred.}$
+\item Prior probability: $P(A)$ — the initial probability of hypothesis/event $A$ before new evidence.
+\item Likelihood: $P(E\mid A)$ — probability of observing evidence $E$ if $A$ is true.
+\item Posterior probability: $P(A\mid E)$ — updated probability of $A$ after observing evidence $E$.
+\item Evidence (marginal probability): $P(E)$ — total probability of observing $E$ under all hypotheses.
+\end{itemize}
+
+\section{CORE FORMULAS (quick reference)}
+\begin{itemize}
+\item Definition of conditional probability: \\
+$P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$, provided $P(A)>0$.
+
+\item Law of total probability (for a partition $A_1,A_2,\dots,A_n$): \\
+$$P(E)=\sum_{i=1}^{n} P(A_i)\,P(E\mid A_i).$$
+
+\item Bayes' theorem (general form for hypothesis $A_i$ given evidence $E$): \\
+$$P(A_i\mid E)=\dfrac{P(A_i)\,P(E\mid A_i)}{\sum_{j=1}^{n} P(A_j)\,P(E\mid A_j)}.$$
+
+\item Two-hypothesis ($A$ and $\neg A$) Bayes formula: \\
+$$P(A\mid E)=\dfrac{P(A)\,P(E\mid A)}{P(A)\,P(E\mid A)+P(\neg A)\,P(E\mid \neg A)}.$$
+
+\item Odds form (useful for comparing two hypotheses $A$ vs.\ $\neg A$): \\
+Posterior odds = Prior odds $\times$ Likelihood ratio, i.e.
+$$\frac{P(A\mid E)}{P(\neg A\mid E)}=\frac{P(A)}{P(\neg A)}\times\frac{P(E\mid A)}{P(E\mid \neg A)}.$$
+\end{itemize}
+
+\section{STEP-BY-STEP PROCEDURE FOR APPLYING BAYES}
+\begin{enumerate}
+\item Identify hypotheses ($A_1,A_2,\dots,A_n$) and which one you want the posterior for.
+\item Obtain priors $P(A_i)$ for each hypothesis.
+\item Obtain likelihoods $P(E\mid A_i)$ for the observed evidence $E$.
+\item Compute evidence: $P(E)=\sum_i P(A_i)P(E\mid A_i)$.
+\item Compute posterior: $P(A_k\mid E)=\dfrac{P(A_k)\,P(E\mid A_k)}{P(E)}$.
+\item (Optional) Convert to odds if comparing two hypotheses.
+\end{enumerate}
+
+\section{INTUITIVE / FREQUENTIST APPROACH (useful for checking)}
+\begin{itemize}
+\item Choose a convenient total $N$ (e.g., $1000$ or $100000$).
+\item Compute expected counts: $\text{count}(A_i)=N\times P(A_i)$; \\
+$\text{count}(E\cap A_i)=\text{count}(A_i)\times P(E\mid A_i)$.
+\item Evidence count $=\sum_i \text{count}(E\cap A_i)$.
+\item Posterior $=\dfrac{\text{count}(E\cap A_k)}{\text{evidence count}}$.
+\item This method avoids algebra errors and is easy for practice.
+\end{itemize}
+
+\section{EXAMPLES (worked, stepwise)}
+
+\subsection{Example A — ELT defect (from text)}
+\begin{itemize}
+\item Hypotheses: $A=\text{Altigauge }(P(A)=0.80)$, $B=\text{Bryant }(P(B)=0.15)$, $C=\text{Chartair }(P(C)=0.05)$.
+\item Likelihoods (defective $D$): $P(D\mid A)=0.04,\; P(D\mid B)=0.06,\; P(D\mid C)=0.09$.
+\item Evidence:
+$$P(D)=0.80\times 0.04+0.15\times 0.06+0.05\times 0.09=0.032+0.009+0.0045=0.0455.$$
+\item Posterior:
+$$P(A\mid D)=\frac{0.032}{0.0455}\approx 0.703\ (\approx70.3\%).$$
+\end{itemize}
+
+\subsection{Example B — Cigar smokers (Orange County)}
+\begin{itemize}
+\item Priors: $P(\text{male})=0.51,\; P(\text{female})=0.49$.
+\item Likelihoods: $P(\text{cigar}\mid\text{male})=0.095,\; P(\text{cigar}\mid\text{female})=0.017$.
+\item Evidence:
+$$P(\text{cigar})=0.51\times 0.095+0.49\times 0.017=0.04845+0.00833=0.05678.$$
+\item Posterior:
+$$P(\text{male}\mid\text{cigar})=\frac{0.04845}{0.05678}\approx 0.8529\ (\approx85.3\%).$$
+\item Frequentist check with $N=100000$: cigar-smoking males $=4845$; cigar-smoking females $=833$; \\
+posterior $=4845/(4845+833)\approx 0.8529$.
+\end{itemize}
+
+\section{IMPORTANT RELATIONSHIPS \& REMINDERS}
+\begin{itemize}
+\item Posterior depends on both prior and likelihood. A large likelihood ratio can overcome a small prior.
+\item Law of total probability is required to compute evidence in the denominator of Bayes' formula.
+\item For mutually exclusive and exhaustive hypotheses $A_i$, $\sum_i P(A_i)=1$.
+\item Use consistent units (decimals vs.\ percentages) throughout computations.
+\item The intuitive counts/table method is often less error-prone than plugging into formulas.
+\end{itemize}
+
+\section{COMMON PITFALLS}
+\begin{itemize}
+\item Forgetting to compute the evidence (denominator) as the total probability of the evidence.
+\item Mixing up $P(E\mid A)$ and $P(A\mid E)$. These are not the same.
+\item Using non-exhaustive or overlapping hypotheses without adjusting structure (hypotheses should partition the sample space).
+\item Rounding too early in intermediate steps; carry precision until the final answer.
+\end{itemize}
+
+\section{QUICK CHEAT-SHEET (copyable)}
+\begin{itemize}
+\item $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$
+\item $P(E)=\sum_i P(A_i)\,P(E\mid A_i)$
+\item $P(A_i\mid E)=\dfrac{P(A_i)\,P(E\mid A_i)}{P(E)}$
+\item Odds form: posterior odds = prior odds $\times$ likelihood ratio
+\end{itemize}
+
+\section{STUDY \& REVISION TIPS}
+\begin{itemize}
+\item Practice both algebraic and frequency-table solutions for the same problem.
+\item Always label events clearly (what is hypothesis, what is evidence).
+\item Solve small numerical examples (two-hypothesis and multiple-hypothesis) until steps are routine.
+\item Memorize the structure: prior $\times$ likelihood $\to$ normalize by evidence $\to$ posterior.
+\end{itemize}
+
+If you want, I can convert this into a one-page printable cheat-sheet (compact layout) or make 5--10 flashcards with example problems and solutions.
+
+\end{document}

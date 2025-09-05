@@ -1,0 +1,95 @@
+\section{Key definitions}
+\begin{itemize}
+\item Prior probability: initial probability before new information. Example: $P(A)$.
+\item Posterior probability: revised probability after new information. Example: $P(A\mid B)$.
+\item Conditional probability: probability of $B$ given $A$. Formula: $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$.
+\item Likelihood: $P(B\mid A)$, the probability of observed data $B$ under hypothesis $A$.
+\item Evidence (marginal probability): $P(B)$, the total probability of $B$ across all hypotheses.
+\item Joint probability: $P(A\cap B)$, probability both $A$ and $B$ occur.
+\item Independence: $A$ and $B$ independent if $P(A\mid B)=P(A)$ (equivalently $P(A\cap B)=P(A)P(B)$).
+\end{itemize}
+
+\section{Core formulas}
+\begin{itemize}
+\item Conditional probability (definition):
+$$P(B\mid A)=\frac{P(A\cap B)}{P(A)}.$$
+\item Joint probability (equivalent forms):
+$$P(A\cap B)=P(A)P(B\mid A)=P(B)P(A\mid B).$$
+\item Bayes' theorem (two events):
+$$P(A\mid B)=\frac{P(B\mid A)P(A)}{P(B)}.$$
+\item Law of total probability (for a partition $\{A_i\}$):
+$$P(B)=\sum_i P(B\mid A_i)P(A_i).$$
+\item Generalized Bayes' theorem (for partition $\{A_i\}$):
+$$P(A_k\mid B)=\frac{P(B\mid A_k)P(A_k)}{\sum_i P(B\mid A_i)P(A_i)}.$$
+\end{itemize}
+
+\section{Short application procedure (useful checklist)}
+\begin{enumerate}
+\item Identify mutually exclusive, exhaustive hypotheses $A_i$ and their priors $P(A_i)$.
+\item Compute likelihoods $P(B\mid A_i)$ for the observed evidence $B$.
+\item Compute evidence: $P(B)=\sum_i P(B\mid A_i)P(A_i)$.
+\item Compute posterior for hypothesis $A_k$: $P(A_k\mid B)=\dfrac{P(B\mid A_k)P(A_k)}{P(B)}$.
+\end{enumerate}
+
+\section{Intuitive (frequency/table) method}
+\begin{itemize}
+\item Choose a convenient total $N$ (e.g., $100$, $1{,}000$, $100{,}000$).
+\item Convert priors to counts: $\text{count}(A_i)=N\cdot P(A_i)$.
+\item Convert likelihoods to counts: $\text{count}(A_i\cap B)=\text{count}(A_i)\cdot P(B\mid A_i)$.
+\item Evidence count: $\text{count}(B)=\sum_i \text{count}(A_i\cap B)$.
+\item Posterior as frequency: $P(A_k\mid B)=\dfrac{\text{count}(A_k\cap B)}{\text{count}(B)}$.
+\end{itemize}
+
+\section{Important relationships and notes}
+\begin{itemize}
+\item Posterior $=$ (Likelihood $\times$ Prior) $/$ Evidence.
+\item Bayes updates beliefs: prior $\to$ incorporate data $B$ $\to$ posterior.
+\item The Law of Total Probability provides the denominator for Bayes' rule.
+\item For independent events, Bayes' update is unnecessary: $P(A\mid B)=P(A)$.
+\item Use the frequency method to reduce algebra mistakes.
+\end{itemize}
+
+\section{Examples (formula + calculation)}
+\begin{itemize}
+\item Two-group Bayes (cigar example):\\
+Given $P(\text{Male})=0.51$, $P(\text{Cigar}\mid \text{Male})=0.095$, $P(\text{Cigar}\mid \text{Female})=0.017$. Then
+$$
+P(\text{Male}\mid \text{Cigar})
+=\frac{P(\text{Cigar}\mid \text{Male})P(\text{Male})}
+{P(\text{Cigar}\mid \text{Male})P(\text{Male})+P(\text{Cigar}\mid \text{Female})P(\text{Female})}
+$$
+Numerically,
+$$
+=\frac{0.095\cdot 0.51}{0.095\cdot 0.51 + 0.017\cdot 0.49}
+=\frac{0.04845}{0.04845 + 0.00833}\approx 0.853\ (\approx 85.3\%).
+$$
+
+\item Three-manufacturer defect example:\\
+$P(A)=0.80$, $P(B)=0.15$, $P(C)=0.05$.\\
+$P(D\mid A)=0.04$, $P(D\mid B)=0.06$, $P(D\mid C)=0.09$. Then
+$$
+P(A\mid D)=\frac{P(D\mid A)P(A)}{P(D\mid A)P(A)+P(D\mid B)P(B)+P(D\mid C)P(C)}
+$$
+Numerically,
+$$
+=\frac{0.04\cdot 0.80}{0.04\cdot 0.80 + 0.06\cdot 0.15 + 0.09\cdot 0.05}
+=\frac{0.032}{0.032 + 0.009 + 0.0045}
+=\frac{0.032}{0.0455}\approx 0.703\ (\approx 70.3\%).
+$$
+\end{itemize}
+
+\section{Quick reference summary (formulas only)}
+\begin{itemize}
+\item $P(B\mid A)=\dfrac{P(A\cap B)}{P(A)}$
+\item $P(A\cap B)=P(A)P(B\mid A)=P(B)P(A\mid B)$
+\item $P(A\mid B)=\dfrac{P(B\mid A)P(A)}{P(B)}$
+\item $P(B)=\sum_i P(B\mid A_i)P(A_i)$
+\item $P(A_k\mid B)=\dfrac{P(B\mid A_k)P(A_k)}{\sum_i P(B\mid A_i)P(A_i)}$
+\end{itemize}
+
+\section{When to use which method}
+\begin{itemize}
+\item Use algebraic Bayes when you have probabilities and want symbolic clarity.
+\item Use the frequency/table method for intuitive understanding and to avoid substitution errors.
+\item Use generalized Bayes when multiple hypotheses partition the sample space.
+\end{itemize}

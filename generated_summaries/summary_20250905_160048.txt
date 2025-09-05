@@ -1,0 +1,67 @@
+1. Fundamental definitions
+- Prior probability: initial probability before new information.
+- Posterior probability: probability revised after new information.
+- Conditional probability: probability of B given A has occurred.
+- Partition: a set of mutually exclusive, exhaustive events A1, A2, ..., An.
+
+2. Core formulas
+2.1 Conditional probability
+- P(B|A) = P(A and B) / P(A), for P(A) > 0.
+- Equivalent product form: P(A and B) = P(A) P(B|A) = P(B) P(A|B).
+
+2.2 Two-event Bayes' theorem
+- P(A|B) = P(B|A) P(A) / P(B), provided P(B) > 0.
+- Law of total probability for denominator (two events A and A^c):
+  P(B) = P(B|A) P(A) + P(B|A^c) P(A^c).
+
+2.3 Generalized (n-event) Bayes' theorem
+- Law of total probability (partition A1,...,An):
+  P(B) = sum_{i=1..n} P(B|Ai) P(Ai).
+- General Bayes formula for Aj in partition:
+  P(Aj|B) = P(B|Aj) P(Aj) / [ sum_{i=1..n} P(B|Ai) P(Ai) ].
+
+2.4 Intuitive / frequency (tree-table) method
+- Choose a convenient total N (e.g., 100,000).
+- Compute cell counts: count(Ai and B) = N * P(Ai) * P(B|Ai).
+- Use counts to get posterior: P(Aj|B) = count(Aj and B) / sum_i count(Ai and B).
+
+3. Short worked examples
+3.1 Cigar-smoking example (two-category)
+- Given: P(male)=0.51, P(cigar|male)=0.095, P(cigar|female)=0.017.
+- Denominator: P(cigar) = 0.095*0.51 + 0.017*0.49 = 0.04845 + 0.00833 = 0.05678.
+- Posterior: P(male|cigar) = 0.095*0.51 / 0.05678 ≈ 0.085 / 0.05678 ≈ 0.854 (approx).
+- Frequency check (N=100,000): males smoking = 4,845; females smoking = 833; total = 5,678; ratio = 4,845/5,678 ≈ 0.854.
+
+3.2 ELT manufacturers (three-category)
+- Given: P(A)=0.80, P(B)=0.15, P(C)=0.05.
+- Defective rates: P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09.
+- Numerator for A: 0.80*0.04 = 0.032.
+- Denominator: 0.032 + 0.15*0.06 + 0.05*0.09 = 0.032 + 0.009 + 0.0045 = 0.0455.
+- Posterior: P(A|D) = 0.032 / 0.0455 ≈ 0.703.
+- Frequency check (N=10,000): defective from A = 320; total defective = 455; ratio = 320/455 ≈ 0.703.
+
+4. Key relationships and connections
+- Bayes updates prior to posterior using likelihood P(B|Ai).
+- Denominator always equals weighted sum of likelihoods across partition (law of total probability).
+- Product rule links joint and conditional probabilities: P(A and B) = P(A) P(B|A).
+- Using frequencies reduces algebra mistakes and improves intuition.
+
+5. Quick application checklist (ordered steps)
+1 - Identify hypotheses/partitions A1,...,An and the observed event B.
+2 - Collect priors P(Ai) and likelihoods P(B|Ai).
+3 - Compute denominator: sum_i P(B|Ai) P(Ai).
+4 - Compute posterior for desired Aj: P(Aj|B) = P(B|Aj) P(Aj) / denominator.
+5 - Optionally verify with a frequency table using a chosen N.
+
+6. Common pitfalls and notes
+- Ensure events Ai form a partition (mutually exclusive and exhaustive).
+- Check that P(B) (denominator) > 0 before dividing.
+- Distinguish P(B|A) (likelihood) from P(A|B) (posterior).
+- Use the frequency method to avoid algebraic substitution errors.
+
+7. Compact formula summary (for quick revision)
+- Conditional: P(B|A) = P(A and B) / P(A).
+- Product: P(A and B) = P(A) P(B|A).
+- Bayes (two-event): P(A|B) = P(B|A) P(A) / P(B).
+- Total prob. (partition): P(B) = sum_i P(B|Ai) P(Ai).
+- Bayes (general): P(Aj|B) = P(B|Aj) P(Aj) / [ sum_i P(B|Ai) P(Ai) ].
