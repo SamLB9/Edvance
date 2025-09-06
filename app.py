@@ -625,20 +625,29 @@ def summary_tab():
             st.caption(f"Preview unavailable: {_e}")
     
     # Focus area input
-    focus = st.text_input("Focus Area/Topic", placeholder="e.g., Bayes theorem, neural networks, calculus derivatives")
+    focus = st.text_input("Focus Area/Topic (optional)", placeholder="Leave empty for a general summary of the selected PDF")
     
-    # Summary type selection
-    summary_type = st.selectbox("Summary Type", ["Comprehensive", "Structured"], 
-                               help="Comprehensive: General summary, Structured: Organized with specific sections")
+    # Summary type removed; default to Comprehensive
+    summary_type = "Comprehensive"
     
-    # Actions row: Generate and Stop & Reset side-by-side
+    # Actions row: Generate and Stop & Reset side-by-side (uniform widths)
+    st.markdown(
+        """
+        <style>
+        #summary-actions .stButton > button { width: 100%; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div id='summary-actions'>", unsafe_allow_html=True)
     action_cols = st.columns([1, 1, 6])
     with action_cols[0]:
-        generate_clicked = st.button("Generate Summary", disabled=not focus.strip() or not selected_file)
+        generate_clicked = st.button("Generate Summary", disabled=not selected_file)
     with action_cols[1]:
         is_generating = st.session_state.get("summary_generating", False)
         has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
-        if st.button("⏹️ Stop & Reset", help="Cancel current generation and clear summary state", disabled=False if is_generating else not (is_generating or has_summary)):
+        if st.button("⏹️ Stop & Reset", help="Cancel current generation and clear current preview", disabled=False if is_generating else not (is_generating or has_summary)):
+            # Clear only the current preview/result; keep saved PDFs intact
             for k in [
                 "last_summary_result",
                 "last_pdf_bytes",
@@ -646,10 +655,10 @@ def summary_tab():
                 "last_pdf_filename",
             ]:
                 st.session_state.pop(k, None)
-            st.session_state["saved_pdfs"] = []
             st.session_state["summary_generating"] = False
             st.session_state.pop("summary_pending", None)
             st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Generate summary flow
     if generate_clicked:
@@ -665,24 +674,29 @@ def summary_tab():
     if pending_summary:
         with st.spinner("Generating summary..."):
             try:
-                # Retrieve context for the selected file and focus
-                context = retrieve_context(st.session_state.vs, pending_summary.get("focus", ""), k=8)
+                # Retrieve context using focus if provided, otherwise use the filename as a broad query
+                _focus = pending_summary.get("focus", "").strip()
+                query = _focus if _focus else pending_summary.get("selected_file", "")
+                context = retrieve_context(st.session_state.vs, query, k=8)
                 
                 if not context.strip():
                     st.warning("No relevant content found for this focus area. Try a different topic or check if the notes contain relevant information.")
                     st.session_state["summary_generating"] = False
                     st.session_state.pop("summary_pending", None)
-                    st.rerun()
+                    # Keep message visible without immediate rerun
+                    return
                 
                 # Import summary functions
                 from src.summary_engine import generate_enhanced_summary_with_pdf
                 
                 # Generate summary with PDF
+                # If no focus supplied, label the PDF as a general summary
+                focus_for_pdf = _focus if _focus else "General Summary"
                 result = generate_enhanced_summary_with_pdf(
                     context,
-                    pending_summary.get("focus", ""),
+                    focus_for_pdf,
                     pending_summary.get("selected_file", ""),
-                    pending_summary.get("summary_type", "Comprehensive"),
+                    "Comprehensive",
                 )
                 
                 if result.get("status") == "success":
@@ -706,10 +720,21 @@ def summary_tab():
                         st.session_state["last_pdf_base64"] = None
                         st.session_state["last_pdf_filename"] = None
                 else:
-                    st.error(f"Error generating summary: {result.get('error', 'Unknown error')}")
+                    ph = st.empty()
+                    ph.error(f"Error generating summary: {result.get('error', 'Unknown error')}")
+                    import time as _t
+                    _t.sleep(10)
+                    ph.empty()
             except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
+                ph = st.empty()
+                ph.error(f"An error occurred: {str(e)}")
                 st.exception(e)
+                import time as _t
+                _t.sleep(10)
+                ph.empty()
+                st.session_state["summary_generating"] = False
+                st.session_state.pop("summary_pending", None)
+                return
         st.session_state["summary_generating"] = False
         st.session_state.pop("summary_pending", None)
         st.rerun()
@@ -758,6 +783,34 @@ def summary_tab():
             col1, col2, col3 = st.columns(3)
             with col1:
                 if st.session_state.get("last_pdf_bytes"):
+                    save_clicked = st.button("💾 Save PDF to Session", help="Keep this PDF accessible in the current session")
+                    if save_clicked:
+                        # Save PDF to session state for persistent access (prevent duplicates by filename)
+                        st.session_state["saved_pdfs"] = st.session_state.get("saved_pdfs", [])
+                        current_name = st.session_state.get("last_pdf_filename", "summary.pdf")
+                        already_saved = any(p.get("filename") == current_name for p in st.session_state["saved_pdfs"])
+                        if already_saved:
+                            # Show a toast that auto-dismisses (Streamlit >= 1.29)
+                            try:
+                                st.toast("This file has already been saved", icon="ℹ️")
+                            except Exception:
+                                # Fallback inline info (non-blocking, no sleep)
+                                st.info("This file has already been saved")
+                        else:
+                            pdf_info = {
+                                "filename": current_name,
+                                "focus": persisted.get('focus', ''),
+                                "source": persisted.get('pdf_name', ''),
+                                "timestamp": persisted.get('timestamp', ''),
+                                "pdf_bytes": st.session_state["last_pdf_bytes"],
+                                "pdf_base64": st.session_state.get("last_pdf_base64", "")
+                            }
+                            st.session_state["saved_pdfs"].append(pdf_info)
+                            st.success(f"✅ PDF saved! ({len(st.session_state['saved_pdfs'])} PDFs in session)")
+                            st.rerun()
+                    
+            with col2:
+                if st.session_state.get("last_pdf_bytes"):
                     st.download_button(
                         label="📚 Download PDF",
                         data=st.session_state["last_pdf_bytes"],
@@ -765,7 +818,7 @@ def summary_tab():
                         mime="application/pdf",
                         help="Download the professional LaTeX-generated PDF"
                     )
-            with col2:
+            with col3:
                 summary_text = f"# Course Notes Summary\n\n**Focus Area:** {persisted.get('focus','')}\n**Source:** {persisted.get('pdf_name','')}\n\n{persisted.get('summary','')}"
                 st.download_button(
                     label="📄 Download Markdown",
@@ -774,24 +827,17 @@ def summary_tab():
                     mime="text/markdown",
                     help="Download as Markdown text (backup option)"
                 )
-            with col3:
-                if st.session_state.get("last_pdf_bytes"):
-                    if st.button("💾 Save PDF to Session", help="Keep this PDF accessible in the current session"):
-                        # Save PDF to session state for persistent access
-                        st.session_state["saved_pdfs"] = st.session_state.get("saved_pdfs", [])
-                        pdf_info = {
-                            "filename": st.session_state.get("last_pdf_filename", "summary.pdf"),
-                            "focus": persisted.get('focus', ''),
-                            "source": persisted.get('pdf_name', ''),
-                            "timestamp": persisted.get('timestamp', ''),
-                            "pdf_bytes": st.session_state["last_pdf_bytes"],
-                            "pdf_base64": st.session_state.get("last_pdf_base64", "")
-                        }
-                        st.session_state["saved_pdfs"].append(pdf_info)
-                        st.success(f"✅ PDF saved! ({len(st.session_state['saved_pdfs'])} PDFs in session)")
-                        st.rerun()
         else:
             st.warning("PDF preview unavailable. Try regenerating the summary.")
+
+    # Tips (moved above Saved PDFs so it doesn't get buried below)
+    with st.expander("💡 Tips for Better PDF Summaries", expanded=False):
+        st.markdown("""
+        - **Be specific**: Instead of 'math', try 'linear algebra' or 'calculus derivatives'
+        - **Use key terms**: Include specific concepts, formulas, or theories you want to focus on
+        - **Try different focus areas**: If one doesn't work, try rephrasing or being more specific
+        - **Check your notes**: Make sure the selected file contains content related to your focus area
+        """)
 
     # Display saved PDFs
     saved_pdfs = st.session_state.get("saved_pdfs", [])
@@ -801,17 +847,11 @@ def summary_tab():
         
         for i, pdf_info in enumerate(saved_pdfs):
             with st.expander(f"📄 {pdf_info['filename']} - {pdf_info['focus']}"):
-                col1, col2, col3 = st.columns([2, 1, 1])
+                col1, col3 = st.columns([3, 1])
                 with col1:
                     st.write(f"**Focus:** {pdf_info['focus']}")
                     st.write(f"**Source:** {pdf_info['source']}")
                     st.write(f"**Generated:** {pdf_info['timestamp']}")
-                with col2:
-                    if st.button(f"👁️ View", key=f"view_{i}"):
-                        st.session_state["last_pdf_bytes"] = pdf_info["pdf_bytes"]
-                        st.session_state["last_pdf_base64"] = pdf_info["pdf_base64"]
-                        st.session_state["last_pdf_filename"] = pdf_info["filename"]
-                        st.rerun()
                 with col3:
                     if st.button(f"🗑️ Remove", key=f"remove_{i}"):
                         st.session_state["saved_pdfs"].pop(i)
@@ -823,42 +863,15 @@ def summary_tab():
                     pdf_display = f"""
                     <iframe src="data:application/pdf;base64,{pdf_info['pdf_base64']}" 
                             width="100%" 
-                            height="600px" 
+                            height="1200px" 
                             style="border: 1px solid #e0e0e0; border-radius: 4px;">
                     </iframe>
                     """
                     st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Show some tips
-    with st.expander("💡 Tips for Better PDF Summaries"):
-        st.markdown("""
-        - **Be specific**: Instead of 'math', try 'linear algebra' or 'calculus derivatives'
-        - **Use key terms**: Include specific concepts, formulas, or theories you want to focus on
-        - **Check your notes**: Make sure the selected file contains content related to your focus area
-        - **Try different focus areas**: If one doesn't work, try rephrasing or being more specific
-        - **PDF Quality**: Each summary generates a professional LaTeX PDF with your business branding
-        - **Preview First**: Check the PDF preview before downloading to ensure it meets your needs
-        """)
     
-    # Debug section for troubleshooting
-    with st.expander("🔧 Debug & Troubleshooting"):
-        if st.button("Test LaTeX Compilation"):
-            from src.summary_engine import test_latex_compilation
-            result = test_latex_compilation()
-            if result["success"]:
-                st.success("✅ LaTeX compilation test passed!")
-                st.json(result)
-            else:
-                st.error("❌ LaTeX compilation test failed!")
-                st.json(result)
-        
-        st.markdown("""
-        **Common PDF Generation Issues:**
-        - **LaTeX not installed**: Install TeX Live or MiKTeX
-        - **Permission errors**: Check write access to output directory
-        - **Compilation errors**: Usually content-related, check LaTeX syntax
-        - **File cleanup issues**: Temporary files not being removed properly
-        """)
+    
+    # Debug & Troubleshooting removed per request
 
 
 def main():

@@ -113,16 +113,42 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
         abs_output_dir = os.path.abspath(output_dir)
         os.makedirs(abs_output_dir, exist_ok=True)
         
-        # Generate filename with timestamp to ensure uniqueness
+        # Timestamp for debug filenames
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        focus_clean = summary_data["focus"].replace(" ", "_").replace("/", "_").replace("\\", "_")
-        pdf_filename = f"summary_{focus_clean}_{timestamp}.pdf"
-        pdf_path = os.path.join(abs_output_dir, pdf_filename)
-        
-        # Also check for the temp filename that LaTeX actually creates
-        temp_pdf_filename = f"temp_{focus_clean}_{timestamp}.pdf"
+        # Build target filename: summary_{pdf_name}_{focus}.pdf with de-dupe suffixes
+        def _clean(s: str) -> str:
+            return (
+                str(s)
+                .strip()
+                .replace(" ", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+            )
+
+        pdf_name_clean = _clean(summary_data.get("pdf_name", "document")).replace(".pdf", "")
+        focus_clean = _clean(summary_data.get("focus", "General_Summary"))
+        base_name = f"summary_{pdf_name_clean}_{focus_clean}"
+
+        candidate = base_name + ".pdf"
+        candidate_path = os.path.join(abs_output_dir, candidate)
+        if os.path.exists(candidate_path):
+            idx = 1
+            while True:
+                with_suffix = f"{base_name}_{idx}.pdf"
+                with_suffix_path = os.path.join(abs_output_dir, with_suffix)
+                if not os.path.exists(with_suffix_path):
+                    candidate = with_suffix
+                    candidate_path = with_suffix_path
+                    break
+                idx += 1
+
+        pdf_filename = candidate
+        pdf_path = candidate_path
+
+        # Also set temp names for LaTeX compilation
+        temp_pdf_filename = f"temp_{base_name}.pdf"
         temp_pdf_path = os.path.join(abs_output_dir, temp_pdf_filename)
         
         # Save raw summary text for debug purposes
@@ -164,7 +190,7 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
             raise Exception(f"Error generating LaTeX with GPT: {e}")
 
         # Create LaTeX file
-        tex_filename = f"temp_{focus_clean}_{timestamp}.tex"
+        tex_filename = f"temp_{base_name}.tex"
         tex_file_path = os.path.join(abs_output_dir, tex_filename)
         
         try:

@@ -113,6 +113,12 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
     pdf_name = summary_data.get('pdf_name', 'Unknown')
     generated = summary_data.get('timestamp', 'Unknown')
     summary_type = summary_data.get('type', 'Comprehensive')
+    # Prepare a stable PDF document title so viewers show a friendly name
+    def _clean(s: str) -> str:
+        return str(s).strip().replace(' ', '_').replace('/', '_').replace('\\', '_')
+    pdf_name_clean = _clean(os.path.splitext(pdf_name)[0])
+    focus_clean = _clean(focus)
+    pdf_doc_title = f"summary_{pdf_name_clean}_{focus_clean}"
 
     # Standardized preamble (same every time)
     preamble = r"""
@@ -155,7 +161,7 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
 \fancyfoot[C]{}
 \fancyfoot[R]{\sffamily\small \thepage}
 \usepackage{hyperref}
-\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
+\hypersetup{pdftitle={""" + pdf_doc_title + r"""}, pdfauthor={Edvance}, colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{2}
 \raggedbottom
