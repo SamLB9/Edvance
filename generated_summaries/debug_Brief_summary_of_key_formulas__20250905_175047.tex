@@ -1,0 +1,199 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{xcolor}
+\definecolor{primary}{HTML}{0B6FA4}
+\definecolor{secondary}{HTML}{3A6B8A}
+\definecolor{accent}{HTML}{6E7B8C}
+\definecolor{lightgray}{HTML}{F3F5F7}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{sectsty}
+\allsectionsfont{\color{primary}\sffamily}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\sffamily\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{secondary}}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{accent}}{\thesubsubsection}{0.6em}{}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\headrule}{\color{lightgray}\hrule height \headrulewidth \vspace{-\headrulewidth}}
+\fancyhead[L]{\sffamily\small Course Notes Summary}
+\fancyhead[C]{\sffamily\small Focus: Brief summary of key formulas }
+\fancyhead[R]{\sffamily\small Source: BayesTheorem.pdf}
+\fancyfoot[L]{\sffamily\small Generated: 2025-09-05 17:50:47}
+\fancyfoot[C]{}
+\fancyfoot[R]{\sffamily\small \thepage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\raggedbottom
+\usepackage{titling}
+\pretitle{\begin{center}\vspace*{1cm}\sffamily}
+\posttitle{\par\end{center}\vskip 0.2em}
+\preauthor{}\postauthor{}
+\predate{}\postdate{}
+% Helper macros used by model output
+\newcommand{\Prob}{\mathrm{P}}
+\newcommand{\given}{\,\mid\,}
+
+\begin{document}
+
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \vspace*{1cm}
+    \begin{center}
+    \includegraphics[width=0.3\textwidth]{16.png}
+    \end{center}
+    \vspace{1em}
+    {\sffamily\Huge\bfseries\color{primary} Course Notes Summary \par}
+    \vspace{0.8em}
+    {\sffamily\Large\color{secondary} Focus Area: Brief summary of key formulas  \par}
+    \vspace{1.5em}
+    \begin{tcolorbox}[enhanced,width=0.75\textwidth,colback=lightgray,colframe=primary,boxrule=0.8pt,sharp corners,left=6pt,right=6pt,top=6pt,bottom=6pt]\vspace{0.5em}
+      \sffamily
+      \begin{tabular}{@{}p{0.28\textwidth} p{0.62\textwidth}@{}}
+        \textbf{Source: } & BayesTheorem.pdf \\
+        \textbf{Generated:} & 2025-09-05 17:50:47 \\
+        \textbf{Summary Type:} & Comprehensive \\
+      \end{tabular}
+    \end{tcolorbox}
+
+    \vspace{1.5em}
+    {\small\sffamily Prepared for quick revision and reference\par}
+    \vfill
+
+    {\small\sffamily \color{accent} Use this sheet as a step-by-step guide when solving problems.}
+    \vspace{1.8cm}
+  \end{center}
+\end{titlepage}
+
+\section{FOCUS AREA: Brief summary of key formulas}
+
+\section{Definitions}
+\begin{itemize}
+\item Conditional probability: $P(B\mid A)$ is the probability of $B$ given $A$ has occurred.
+\item Prior probability: Initial probability of a hypothesis before new evidence, written $P(A)$.
+\item Posterior probability: Revised probability after observing evidence, written $P(A\mid B)$.
+\item Likelihood: Probability of the evidence under a hypothesis, written $P(B\mid A)$.
+\item Evidence (marginal probability): Total probability of observed evidence, written $P(B)$.
+\end{itemize}
+
+\section{Core formulas}
+\begin{itemize}
+\item Conditional probability:
+$$P(B\mid A)=\frac{P(A\text{ and }B)}{P(A)}.$$
+\item Bayes' theorem (two events):
+$$P(A\mid B)=\frac{P(B\mid A)\,P(A)}{P(B)}.$$
+\item Law of total probability (for evidence):
+$$P(B)=\sum_i P(B\mid A_i)\,P(A_i).$$
+\item Bayes' theorem (generalized):
+$$P(A_j\mid B)=\frac{P(B\mid A_j)\,P(A_j)}{\sum_i P(B\mid A_i)\,P(A_i)}.$$
+\end{itemize}
+
+\section{Step-by-step procedure to apply Bayes' theorem}
+\begin{enumerate}
+\item Identify the hypotheses $A_i$ that partition the sample space.
+\item Record priors $P(A_i)$ for each hypothesis.
+\item Obtain likelihoods $P(B\mid A_i)$ for the observed evidence $B$.
+\item Compute the evidence
+$$P(B)=\sum_i P(B\mid A_i)\,P(A_i).$$
+\item Compute posteriors
+$$P(A_j\mid B)=\frac{P(B\mid A_j)\,P(A_j)}{P(B)}.$$
+\end{enumerate}
+
+\section{Intuitive (frequency) method}
+\begin{itemize}
+\item Assume a convenient total $N$ (e.g., $1000$ or $10000$).
+\item For each hypothesis $A_i$ compute $\text{count}_i = N\cdot P(A_i)$.
+\item For each hypothesis compute $\text{evidence\_count}_i = \text{count}_i\cdot P(B\mid A_i)$.
+\item Total evidence count: $\text{total\_evidence\_count}=\sum_i \text{evidence\_count}_i$.
+\item Then
+$$P(A_j\mid B)=\frac{\text{evidence\_count}_j}{\text{total\_evidence\_count}}.$$
+\item This method is algebraically identical to Bayes' theorem and helps reduce algebra errors.
+\end{itemize}
+
+\section{Worked examples (concise)}
+
+\subsection{Orange County cigar smoker}
+\begin{itemize}
+\item Given: $P(\text{male})=0.51$, $P(\text{female})=0.49$.
+\item Likelihoods: $P(\text{smokes}\mid \text{male})=0.095$, $P(\text{smokes}\mid \text{female})=0.017$.
+\end{itemize}
+Use Bayes:
+$$P(\text{male}\mid \text{smokes})=\frac{0.095\cdot 0.51}{0.095\cdot 0.51 + 0.017\cdot 0.49}.$$
+Calculation:
+\[
+\text{numerator}=0.095\times 0.51=0.04845,
+\]
+\[
+\text{denominator}=0.04845 + 0.017\times 0.49=0.04845 + 0.00833 = 0.05678.
+\]
+Result:
+\[
+P(\text{male}\mid \text{smokes})\approx\frac{0.04845}{0.05678}\approx 0.853\ (85.3\%).
+\]
+
+\subsection{ELT manufacturers (A, B, C) and defect $D$}
+\begin{itemize}
+\item Given: $P(A)=0.80$, $P(B)=0.15$, $P(C)=0.05$.
+\item Likelihoods: $P(D\mid A)=0.04$, $P(D\mid B)=0.06$, $P(D\mid C)=0.09$.
+\end{itemize}
+Use Bayes for $P(A\mid D)$:
+$$P(A\mid D)=\frac{0.80\cdot 0.04}{0.80\cdot 0.04 + 0.15\cdot 0.06 + 0.05\cdot 0.09}.$$
+Calculation:
+\[
+\text{numerator}=0.80\times 0.04=0.032,
+\]
+\[
+\text{denominator}=0.032 + 0.15\times 0.06 + 0.05\times 0.09=0.032 + 0.009 + 0.0045 = 0.0455.
+\]
+Result:
+\[
+P(A\mid D)\approx\frac{0.032}{0.0455}\approx 0.703\ (70.3\%).
+\]
+Frequency check ($N=10000$): $A=8000$ defects$=320$; $B=1500$ defects$=90$; $C=500$ defects$=45$; $P(A\mid D)=320/455\approx 0.703$.
+
+\section{Important relationships and connections}
+\begin{itemize}
+\item Bayes inverts conditional probabilities: $P(A\mid B)$ relates to $P(B\mid A)$.
+\item The denominator in Bayes ensures normalization over all hypotheses.
+\item Bayes relies on exhaustive, mutually exclusive hypotheses $A_i$ for a correct denominator.
+\item Repeated updating: posteriors can serve as new priors when new evidence arrives.
+\item The frequency interpretation often improves intuition and reduces substitution errors.
+\end{itemize}
+
+\section{Common pitfalls and quick checks}
+\begin{itemize}
+\item Do not confuse $P(A\mid B)$ with $P(B\mid A)$.
+\item Ensure hypotheses $A_i$ sum to $1$ (exhaustive).
+\item Include all relevant $A_i$ in the law of total probability.
+\item Check results using the frequency method to validate algebraic results.
+\end{itemize}
+
+\section{Concise reference list of formulas (plain text)}
+\begin{itemize}
+\item $P(B\mid A)=\dfrac{P(A\text{ and }B)}{P(A)}$
+\item $P(A\text{ and }B)=P(B\mid A)\,P(A)=P(A\mid B)\,P(B)$
+\item $P(A\mid B)=\dfrac{P(B\mid A)\,P(A)}{P(B)}$
+\item $P(B)=\sum_i P(B\mid A_i)\,P(A_i)$
+\item $P(A_j\mid B)=\dfrac{P(B\mid A_j)\,P(A_j)}{\sum_i P(B\mid A_i)\,P(A_i)}$
+\end{itemize}
+
+\end{document}

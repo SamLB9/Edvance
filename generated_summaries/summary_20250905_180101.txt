@@ -1,0 +1,60 @@
+Definitions
+- Conditional probability: P(B|A) = P(A ∩ B) / P(A). Probability that B occurs given A has occurred.
+- Prior probability: Initial probability of an event before new information is observed (e.g., P(A)).
+- Posterior probability: Revised probability after incorporating new information (e.g., P(A|B)).
+- Likelihood: P(B|A), probability of observing the new information B assuming A is true.
+- Evidence (marginal probability): P(B), total probability of observing B across all scenarios.
+
+Main formulas
+- Conditional probability (basic)
+  P(B|A) = P(A ∩ B) / P(A)
+  Equivalent relation: P(A ∩ B) = P(A) P(B|A) = P(B) P(A|B)
+- Bayes' theorem (two events)
+  P(A|B) = P(B|A) P(A) / P(B)
+- Law of total probability (for partition A1,...,An)
+  P(B) = Σ_i P(Ai) P(B|Ai)
+- Bayes' theorem (generalized / n events)
+  P(Aj|B) = P(Aj) P(B|Aj) / Σ_i P(Ai) P(B|Ai)
+- Relation useful for odds form
+  Posterior odds = Prior odds × Likelihood ratio
+  (P(A|B)/P(Ac|B)) = (P(A)/P(Ac)) × (P(B|A)/P(B|Ac))
+
+Intuitive (table) method — quick practical approach
+- Idea: Assume a convenient total population N (e.g., 100,000). Compute expected counts from probabilities and fill a contingency table.
+- Steps (ordered)
+  1 - Choose N (e.g., 100,000).
+  2 - Compute counts for each Ai: count(Ai) = N × P(Ai).
+  3 - For each Ai, compute counts of B and not-B: count(Ai ∩ B) = count(Ai) × P(B|Ai).
+  4 - Sum counts across Ai to get total count(B) = Σ count(Ai ∩ B).
+  5 - Compute posterior as count(Aj ∩ B) / count(B) = P(Aj|B).
+- Benefit: Reduces algebra mistakes; gives direct frequency interpretation.
+
+Application checklist — how to apply Bayes correctly
+1 - Identify mutually exclusive, exhaustive hypotheses A1,...,An and their priors P(Ai).
+2 - Obtain likelihoods P(B|Ai) for the observed evidence B.
+3 - Compute evidence P(B) = Σ_i P(Ai) P(B|Ai).
+4 - Compute posterior P(Aj|B) = P(Aj) P(B|Aj) / P(B).
+5 - Optionally convert to odds and use likelihood ratios for sequential updates.
+
+Short examples (formulas and key numeric results)
+- ELT manufacturers (three-way example)
+  Given: P(A)=0.80, P(B)=0.15, P(C)=0.05; P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09.
+  Evidence P(D) = 0.80·0.04 + 0.15·0.06 + 0.05·0.09 = 0.0455.
+  Posterior P(A|D) = 0.80·0.04 / 0.0455 ≈ 0.703.
+- Cigar smoking (two-group example)
+  Given: P(male)=0.51, P(female)=0.49; P(smoke|male)=0.095, P(smoke|female)=0.017.
+  Evidence P(smoke) = 0.51·0.095 + 0.49·0.017 = 0.05678.
+  Posterior P(male|smoke) = 0.51·0.095 / 0.05678 ≈ 0.854.
+
+Important relationships and notes
+- P(A|B) ≠ P(B|A) in general. Use Bayes' theorem to switch conditioning.
+- Bayes updates beliefs: prior → observe evidence (via likelihood) → posterior.
+- The law of total probability is essential for computing the denominator in Bayes' formula.
+- Use frequencies (table method) to avoid algebra errors and to interpret probabilities intuitively.
+- Bayes scales to many hypotheses; computation requires all priors and likelihoods for the partition.
+
+Quick reference summary (one-line formulas)
+- P(B|A) = P(A ∩ B) / P(A)
+- P(A ∩ B) = P(A) P(B|A)
+- P(B) = Σ_i P(Ai) P(B|Ai)
+- P(Aj|B) = P(Aj) P(B|Aj) / Σ_i P(Ai) P(B|Ai)

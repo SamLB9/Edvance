@@ -1,0 +1,131 @@
+\section{fefeg — Definition and scope}
+\begin{itemize}
+\item fefeg: the study-focus is Bayes' theorem and its application to diagnostic/inference problems.
+\item Scope: prior probabilities, likelihoods, posterior probabilities, table method, and multi-hypothesis extension.
+\item Goal: update beliefs about mutually exclusive, exhaustive causes after observing evidence.
+\end{itemize}
+
+\section{Core concepts}
+\begin{itemize}
+\item Prior: $P(A)$ — initial probability of hypothesis $A$ before new evidence.
+\item Likelihood: $P(E\mid A)$ — probability of observing evidence $E$ if hypothesis $A$ is true.
+\item Posterior: $P(A\mid E)$ — updated probability of $A$ after observing $E$.
+\item Marginal (evidence probability): $P(E)$ — total probability of evidence across all hypotheses.
+\item Conditions: hypotheses must be disjoint (mutually exclusive) and exhaustive (cover all possibilities).
+\end{itemize}
+
+\section{Bayes' theorem (basic form)}
+\begin{itemize}
+\item Formula:
+$$
+P(A\mid E)=\frac{P(E\mid A)\,P(A)}{P(E)}.
+$$
+\item Evidence probability (two hypotheses):
+$$
+P(E)=P(E\mid A)P(A)+P(E\mid \neg A)P(\neg A).
+$$
+\item Multi-hypothesis extension:
+$$
+P(A_i\mid E)=\frac{P(A_i)P(E\mid A_i)}{\sum_j P(A_j)P(E\mid A_j)}.
+$$
+\end{itemize}
+
+\section{Intuition and use}
+\begin{itemize}
+\item Intuition: weight the prior by how likely the evidence is under the hypothesis, then normalize.
+\item When $P(E\mid A)$ is small relative to alternatives, the posterior falls even if the prior was large.
+\item Data representation: convert percentages to counts (choose convenient total, e.g., $10{,}000$) to visualize.
+\end{itemize}
+
+\section{Procedure (useful step-by-step)}
+\begin{enumerate}
+\item List hypotheses $A_1,A_2,\dots,A_k$ with priors $P(A_i)$.
+\item For each $A_i$, get likelihood $P(E\mid A_i)$.
+\item Compute $\text{numerator}_i = P(A_i)\,P(E\mid A_i)$.
+\item Compute denominator $= \sum_i \text{numerator}_i$ (this is $P(E)$).
+\item Compute posterior: $P(A_i\mid E)=\dfrac{\text{numerator}_i}{\text{denominator}}$.
+\item (Optional) Verify with contingency table counts.
+\end{enumerate}
+
+\section{Worked example — Emergency Locator Transmitters (ELTs)}
+\begin{itemize}
+\item Given:
+\begin{itemize}
+\item Altigauge (A): $P(A)=0.80$, defect rate $P(D\mid A)=0.04$.
+\item Bryant (B): $P(B)=0.15$, $P(D\mid B)=0.06$.
+\item Chartair (C): $P(C)=0.05$, $P(D\mid C)=0.09$.
+\end{itemize}
+\item Convert to counts for $10{,}000$ units:
+\begin{itemize}
+\item A: total $8{,}000 \Rightarrow$ defective $0.04\times 8000 = 320$; good $7{,}680$.
+\item B: total $1{,}500 \Rightarrow$ defective $0.06\times 1500 = 90$; good $1{,}410$.
+\item C: total $500 \Rightarrow$ defective $0.09\times 500 = 45$; good $455$.
+\item Totals: defective $=320+90+45=455$; good $=9{,}545$.
+\end{itemize}
+\end{itemize}
+
+\begin{enumerate}
+\item Example 1 — $P(A\mid D)$ (probability a defective ELT came from Altigauge):
+$$
+P(A\mid D)=\frac{P(A)P(D\mid A)}{P(A)P(D\mid A)+P(B)P(D\mid B)+P(C)P(D\mid C)}.
+$$
+Calculation:
+$$
+P(A\mid D)=\frac{0.80\times 0.04}{0.80\times 0.04 + 0.15\times 0.06 + 0.05\times 0.09}
+= \frac{0.032}{0.032+0.009+0.0045}
+= \frac{0.032}{0.0455}.
+$$
+Result: $\dfrac{0.032}{0.0455}=\dfrac{320}{455}\approx 0.703$.
+
+\item Example 2 — $P(B\mid D)$:
+$$
+P(B\mid D)=\frac{0.15\times 0.06}{0.0455}=\frac{0.009}{0.0455}=\frac{90}{455}\approx 0.198.
+$$
+
+\item Example 3 — $P(C\mid D)$:
+$$
+P(C\mid D)=\frac{0.05\times 0.09}{0.0455}=\frac{0.0045}{0.0455}=\frac{45}{455}\approx 0.099.
+$$
+
+\item Example 4 — $P(A\mid \neg D)$ (not defective):
+Using counts:
+$$
+P(A\mid \neg D)=\frac{7{,}680}{9{,}545}\approx 0.8048.
+$$
+Or via formula using $P(\neg D\mid A)=1-P(D\mid A)$.
+\end{enumerate}
+
+\section{Table method (practical tool)}
+\begin{itemize}
+\item Build a contingency table with rows = hypotheses and columns = evidence states.
+\item Fill using chosen population (e.g., $10{,}000$) and rates.
+\item Posterior is the cell count for $(A_i\ \text{and}\ E)$ divided by the column total for $E$.
+\item Advantage: avoids fraction algebra and reduces calculation errors.
+\end{itemize}
+
+\section{Important relationships and connections}
+\begin{itemize}
+\item Posterior depends on both prior and likelihood.
+\item A large prior can be overcome by strongly contrary likelihoods.
+\item With many low-prior hypotheses, one can still have a non-negligible posterior if the likelihood is high.
+\item Bayes' theorem for sequential updating: the current posterior becomes the next prior when new evidence arrives.
+\end{itemize}
+
+\section{Common pitfalls and tips}
+\begin{itemize}
+\item Pitfall: using $P(A\mid B)=P(B\mid A)$ (missing normalization by $P(B)$).
+\item Pitfall: forgetting hypotheses must be exhaustive.
+\item Tip: convert percentages to counts for clarity.
+\item Tip: always compute the denominator $P(E)$ explicitly to check consistency.
+\item Tip: round only at the final step to avoid cumulative rounding error.
+\end{itemize}
+
+\section{Quick revision checklist}
+\begin{itemize}
+\item Verify hypotheses are disjoint and exhaustive.
+\item Identify priors and likelihoods clearly.
+\item Compute numerators $P(A_i)P(E\mid A_i)$ for all $i$.
+\item Sum numerators to get $P(E)$.
+\item Divide each numerator by $P(E)$ to get posteriors.
+\item Cross-check with a contingency table when possible.
+\end{itemize}

@@ -44,6 +44,8 @@ def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, 
         - Numbered lists (“1 - …”) for ordered steps
         - Short, precise sentences
     6. Tone: Academic yet accessible, like notes prepared for quick revision.
+
+    Avoid using too many "-" at the beginning of the lines.
     
     ### Output format:
     Return a **structured textual summary** (not LaTeX) with:

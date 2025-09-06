@@ -1,18 +1,59 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
-.pytest_cache/
+.installed.cfg
+*.egg
 
-# Virtual environments
-.venv/
+# Virtual Environment
 venv/
-.env
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Streamlit
-.streamlit/
+# Project specific
+generated_summaries/*.pdf
+generated_summaries/*.tex
+generated_summaries/*.log
+generated_summaries/*.aux
+generated_summaries/*.out
+generated_summaries/*.toc
+generated_summaries/temp_*
+generated_summaries/*_pass*
+
+# Keep these in generated_summaries:
+!generated_summaries/16.png
+!generated_summaries/summary_*.txt
+!generated_summaries/debug_*.tex
+!generated_summaries/before_cleanup_*.tex
+
+# Vector store (can be regenerated)
+vectorstore/
+
+# Progress data (optional - you might want to keep this)
+# progress.json

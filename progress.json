@@ -1,5 +1,91 @@
 {
   "sessions": [],
-  "attempts": [],
-  "questions": {}
+  "attempts": [
+    {
+      "timestamp": "2025-09-05T15:47:47.006695Z",
+      "topic": "Bayes Theorem",
+      "question_id": "029d35c18e2c45ba",
+      "prompt": "Which best defines a posterior probability?",
+      "student_answer": "B) A probability value revised by using additional information obtained later",
+      "correct": true,
+      "response_ms": 6403
+    },
+    {
+      "timestamp": "2025-09-05T15:56:10.246479Z",
+      "topic": "Bayes Theorem",
+      "question_id": "9b19be42dd9050af",
+      "prompt": "Using P(A)=0.80, P(B)=0.15, P(C)=0.05 and defect rates P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09, what is the overall probability P(D) that a randomly selected ELT is defective?",
+      "student_answer": "B) 0.0455",
+      "correct": true,
+      "response_ms": 191521
+    },
+    {
+      "timestamp": "2025-09-05T16:07:48.184003Z",
+      "topic": "",
+      "question_id": "f3494e689e6269a7",
+      "prompt": "If an ELT is randomly selected from the general population of all ELTs, what is the probability it was made by the Altigauge Manufacturing Company?",
+      "student_answer": "B) 0.15",
+      "correct": false,
+      "response_ms": 7355
+    },
+    {
+      "timestamp": "2025-09-05T16:28:55.437184Z",
+      "topic": "",
+      "question_id": "271c4c949e63ba12",
+      "prompt": "What percentage of ELTs are made by Chartair according to the example?",
+      "student_answer": "B) 15%",
+      "correct": false,
+      "response_ms": 17615
+    }
+  ],
+  "questions": {
+    "029d35c18e2c45ba": {
+      "prompt": "Which best defines a posterior probability?",
+      "times_asked": 1,
+      "last_answer": "B) A probability value revised by using additional information obtained later",
+      "last_correct": true,
+      "last_timestamp": "2025-09-05T15:47:47.006695Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 6403,
+      "avg_response_ms": 6403
+    },
+    "9b19be42dd9050af": {
+      "prompt": "Using P(A)=0.80, P(B)=0.15, P(C)=0.05 and defect rates P(D|A)=0.04, P(D|B)=0.06, P(D|C)=0.09, what is the overall probability P(D) that a randomly selected ELT is defective?",
+      "times_asked": 1,
+      "last_answer": "B) 0.0455",
+      "last_correct": true,
+      "last_timestamp": "2025-09-05T15:56:10.246479Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 191521,
+      "avg_response_ms": 191521
+    },
+    "f3494e689e6269a7": {
+      "prompt": "If an ELT is randomly selected from the general population of all ELTs, what is the probability it was made by the Altigauge Manufacturing Company?",
+      "times_asked": 1,
+      "last_answer": "B) 0.15",
+      "last_correct": false,
+      "last_timestamp": "2025-09-05T16:07:48.184003Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 7355,
+      "avg_response_ms": 7355
+    },
+    "271c4c949e63ba12": {
+      "prompt": "What percentage of ELTs are made by Chartair according to the example?",
+      "times_asked": 1,
+      "last_answer": "B) 15%",
+      "last_correct": false,
+      "last_timestamp": "2025-09-05T16:28:55.437184Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 17615,
+      "avg_response_ms": 17615
+    }
+  }
 }

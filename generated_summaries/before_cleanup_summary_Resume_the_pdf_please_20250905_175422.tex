@@ -1,0 +1,165 @@
+\section{Overview}
+
+\subsection{Purpose}
+\begin{itemize}
+\item Bayes' theorem revises prior probabilities when new evidence is observed.
+\item It converts likelihoods and priors into posterior probabilities.
+\end{itemize}
+
+\subsection{Key definitions}
+\begin{itemize}
+\item Prior probability: $P(H)$ — probability assigned to hypothesis $H$ before new evidence.
+\item Likelihood: $P(E\mid H)$ — probability of observing evidence $E$ if $H$ is true.
+\item Marginal (evidence) probability: $P(E)$ — total probability of evidence under all hypotheses.
+\item Posterior probability: $P(H\mid E)$ — revised probability of $H$ after observing $E$.
+\end{itemize}
+
+\section{Core formulas}
+\begin{itemize}
+\item Conditional probability definition:
+$$
+P(A\mid B)=\frac{P(A\land B)}{P(B)}.
+$$
+\item Bayes' theorem (two hypotheses):
+$$
+P(A\mid B)=\frac{P(B\mid A)\,P(A)}{P(B\mid A)\,P(A)+P(B\mid \lnot A)\,P(\lnot A)}.
+$$
+\item Bayes' theorem (general, partition $\{A_1,\dots,A_n\}$):
+$$
+P(A_i\mid E)=\frac{P(A_i)\,P(E\mid A_i)}{\sum_j P(A_j)\,P(E\mid A_j)}.
+$$
+\item Extended example form (four hypotheses):
+$$
+P(A\mid Z)=\frac{P(A)P(Z\mid A)}{P(A)P(Z\mid A)+P(B)P(Z\mid B)+P(C)P(Z\mid C)+P(D)P(Z\mid D)}.
+$$
+\end{itemize}
+
+\section{Procedure to apply Bayes' theorem}
+\begin{enumerate}
+\item Identify hypothesis $H$ and evidence $E$.
+\item Obtain priors $P(H)$ and $P(\lnot H)$ (or $P(A_i)$ for all hypotheses).
+\item Obtain likelihoods $P(E\mid H)$ and $P(E\mid \lnot H)$ (or $P(E\mid A_i)$ for all).
+\item Compute marginal $P(E)=\sum_j P(A_j)P(E\mid A_j)$.
+\item Compute posterior:
+$$
+P(H\mid E)=\frac{P(E\mid H)\,P(H)}{P(E)}.
+$$
+\item Interpret result: posterior replaces prior given the evidence.
+\end{enumerate}
+
+\section{Worked examples (from PDF)}
+
+\subsection{Orange County cigar example (credit-card survey)}
+\begin{itemize}
+\item Given: $P(\text{male})=0.51$, $P(\text{female})=0.49$.
+\item Likelihoods: $P(\text{smoke}\mid\text{male})=0.095$, $P(\text{smoke}\mid\text{female})=0.017$.
+\item Posterior:
+$$
+P(\text{male}\mid\text{smoke})=\frac{0.51\cdot 0.095}{0.51\cdot 0.095+0.49\cdot 0.017}\approx 0.853.
+$$
+\item Interpretation: Observing cigar smoking increases probability subject is male.
+\end{itemize}
+
+\subsection{Pregnancy test (contingency table)}
+\begin{itemize}
+\item Table totals:
+  \begin{itemize}
+  \item Pregnant \& positive: $80$
+  \item Pregnant \& negative: $5$
+  \item Not pregnant \& positive: $3$
+  \item Not pregnant \& negative: $11$
+  \item Totals: Pregnant $=85$, Not pregnant $=14$, Positive $=83$, Negative $=16$, $N=99$
+  \end{itemize}
+\item Results:
+  \begin{itemize}
+  \item $P(\text{pregnant})=\dfrac{85}{99}=0.859$.
+  \item $P(\text{pregnant}\mid\text{positive})=\dfrac{80}{83}=0.964$.
+  \item $P(\text{not pregnant})=\dfrac{14}{99}=0.141$.
+  \item $P(\text{not pregnant}\mid\text{negative})=\dfrac{11}{16}=0.6875$.
+  \end{itemize}
+\end{itemize}
+
+\subsection{Pleas and sentences}
+\begin{itemize}
+\item Given: $P(\text{sent to prison})=0.45$, $P(\text{not sent})=0.55$.
+\item Likelihoods: $P(\text{guilty}\mid\text{prison})=0.40$, $P(\text{guilty}\mid\text{not prison})=0.55$.
+\item Posteriors:
+  \begin{itemize}
+  \item Prior: $P(\text{not sent})=0.55$.
+  \item $P(\text{not sent}\mid\text{guilty})=\dfrac{0.55\cdot 0.55}{0.55\cdot 0.55+0.45\cdot 0.40}\approx 0.627$.
+  \item Complement: $P(\text{sent}\mid\text{guilty})=1-0.627=0.373$.
+  \end{itemize}
+\end{itemize}
+
+\subsection{HIV screening (at-risk population)}
+\begin{itemize}
+\item Given: $P(\text{HIV})=0.10$.
+\item Test correct $95\%$ of the time (assumed):
+  \begin{itemize}
+  \item $P(+\mid\text{HIV})=0.95$ (sensitivity).
+  \item $P(+\mid\text{not HIV})=0.05$ (false positive rate).
+  \end{itemize}
+\item Posterior if test positive:
+$$
+P(\text{HIV}\mid +)=\frac{0.10\cdot 0.95}{0.10\cdot 0.95+0.90\cdot 0.05}\approx 0.679.
+$$
+\item Posterior if test negative:
+$$
+P(\text{HIV}\mid -)=\frac{0.10\cdot 0.05}{0.10\cdot 0.05+0.90\cdot 0.95}\approx 0.0058.
+$$
+\end{itemize}
+
+\subsection{Emergency Locator Transmitters (ELT) — method}
+\begin{itemize}
+\item Given data referenced in Exercise 4 (priors by manufacturer and defect rates).
+\item Example answers provided:
+  \begin{itemize}
+  \item $P(\text{selected ELT from Chartair})=0.05$.
+  \item $P(\text{Chartair}\mid\text{defective})=0.0989$.
+  \end{itemize}
+\item Method: treat manufacturers as partition $\{M_1,\dots,M_k\}$ and apply the general formula.
+\end{itemize}
+
+\section{Important relationships and connections}
+\begin{itemize}
+\item Posterior depends on both prior and likelihood; a small prior can be overwhelmed by strong likelihood or vice versa.
+\item Marginal likelihood $P(E)$ normalizes the posterior; it aggregates contributions from all competing hypotheses.
+\item Bayes' theorem connects conditional probabilities $P(A\mid B)$ and $P(B\mid A)$.
+\item When tests are imperfect, high sensitivity and low prevalence can yield moderate post-test positive probabilities (illustrated by HIV example).
+\item Contingency tables give direct counts to compute priors, likelihoods, marginals, and posteriors.
+\end{itemize}
+
+\section{Compact worked formulas and reminders}
+\begin{itemize}
+\item $P(A\mid B)=\dfrac{P(B\mid A)\,P(A)}{\sum_j P(B\mid A_j)\,P(A_j)}$.
+\item Marginal: $P(B)=\sum_j P(B\mid A_j)\,P(A_j)$.
+\item Complement checks: $P(A\mid B)+P(\lnot A\mid B)=1$.
+\item When given counts: convert counts to probabilities by dividing by total $N$.
+\end{itemize}
+
+\section{Sample answers from exercises (selected)}
+\begin{itemize}
+\item Pregnancy: $P(\text{pregnant})=\dfrac{85}{99}=0.859$; $P(\text{pregnant}\mid\text{positive})=\dfrac{80}{83}=0.964$.
+\item Orange County prior female: $0.49$; $P(\text{female}\mid\text{smokes cigar})\approx 0.147$ (complement example).
+\item ELT example: $P(\text{Chartair})=0.05$; $P(\text{Chartair}\mid\text{defective})=0.0989$.
+\item Pleas example: $P(\text{not sent})=0.55$; $P(\text{not sent}\mid\text{guilty})=0.627$.
+\item HIV positive test posterior: $0.679$.
+\end{itemize}
+
+\section{Quick revision checklist}
+\begin{enumerate}
+\item Identify hypotheses and evidence.
+\item Write priors $P(A_i)$.
+\item Write likelihoods $P(E\mid A_i)$.
+\item Compute marginal $P(E)=\sum_i P(E\mid A_i)P(A_i)$.
+\item Compute posterior $P(A_i\mid E)=\dfrac{P(E\mid A_i)P(A_i)}{P(E)}$.
+\item Verify results via complements or contingency-table totals.
+\end{enumerate}
+
+\section{Key takeaways}
+\begin{itemize}
+\item Bayes' theorem is a tool for updating beliefs with evidence.
+\item Always check which probabilities are priors vs.\ likelihoods.
+\item Low prevalence can produce counterintuitive posterior probabilities even with accurate tests.
+\item Use the partition form for multiple competing hypotheses.
+\end{itemize}

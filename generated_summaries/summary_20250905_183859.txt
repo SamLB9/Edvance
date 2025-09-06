@@ -1,0 +1,87 @@
+1 - Core concepts
+
+1.1 - Definitions
+- Prior probability: P(A). The probability of hypothesis A before new data.
+- Likelihood: P(B|A). The probability of observed data B assuming hypothesis A.
+- Evidence (marginal likelihood): P(B). The overall probability of the observed data.
+- Posterior probability: P(A|B). The updated probability of A given observation B.
+- Bayes’ theorem: a rule to update priors using new evidence.
+
+1.2 - Bayes’ theorem (basic form)
+- Equation: P(A|B) = P(B|A) P(A) / P(B)
+- Where P(B) = P(B|A) P(A) + P(B|A^c) P(A^c) for a two-part partition.
+
+1.3 - Extended Bayes (multiple hypotheses)
+- Equation for hypotheses A, B, C: P(A|D) = P(D|A) P(A) / [P(D|A) P(A) + P(D|B) P(B) + P(D|C) P(C)]
+- Use when sample can come from more than two exclusive sources.
+
+2 - Illustrative examples
+
+2.1 - Orange County cigar example (two-group Bayes update)
+- Given:
+  - P(M) = 0.51 (prior male)
+  - P(F) = 0.49 (prior female)
+  - P(Cigar|M) = 0.095
+  - P(Cigar|F) = 0.017
+- Posterior required: P(M|Cigar).
+- Formula: P(M|Cigar) = P(Cigar|M) P(M) / [P(Cigar|M) P(M) + P(Cigar|F) P(F)]
+- Substitute: P(M|Cigar) = 0.095*0.51 / [0.095*0.51 + 0.017*0.49]
+- Numeric result: P(M|Cigar) ≈ 0.853 (rounded)
+- Interpretation: Learning the subject smokes a cigar increases the probability they are male.
+
+2.2 - ELT manufacturer example (three hypotheses)
+- Given:
+  - P(A) = 0.80, P(B) = 0.15, P(C) = 0.05
+  - P(D|A) = 0.04, P(D|B) = 0.06, P(D|C) = 0.09
+- Posterior required: P(A|D).
+- Formula: P(A|D) = P(D|A) P(A) / [P(D|A) P(A) + P(D|B) P(B) + P(D|C) P(C)]
+- Substitute: numerator = 0.80*0.04 = 0.032
+- Denominator = 0.032 + 0.15*0.06 + 0.05*0.09 = 0.032 + 0.009 + 0.0045 = 0.0455
+- Numeric result: P(A|D) = 0.032 / 0.0455 ≈ 0.703
+- Interpretation: Even with defects, most defective ELTs are still likely from the dominant manufacturer A.
+
+3 - Intuitive (frequency/table) method
+- Principle: Assume a convenient total population N. Convert probabilities to counts. Compute posteriors by frequency ratios.
+1 - Steps:
+  1 - Choose N (e.g., 100,000).
+  2 - Compute counts for each hypothesis: N * P(hypothesis).
+  3 - Compute counts for data within each hypothesis: N * P(hypothesis) * P(data|hypothesis).
+  4 - Posterior P(hypothesis|data) = count(hypothesis and data) / total count(data).
+- Example (Orange County):
+  - N = 100,000 → males = 51,000.
+  - Male cigar-smokers = 51,000 * 0.095 = 4,845.
+  - Female cigar-smokers = 49,000 * 0.017 = 833.
+  - Total cigar-smokers = 4,845 + 833 = 5,678.
+  - P(M|Cigar) = 4,845 / 5,678 ≈ 0.853.
+
+4 - Important relationships and connections
+- Posterior ∝ Likelihood × Prior: P(A|B) ∝ P(B|A) P(A).
+- Evidence normalizes posteriors across all competing hypotheses.
+- Strong likelihood differences can overwhelm moderate priors.
+- Dominant priors (very large differences in P(A)) can reduce the effect of likelihood unless likelihoods differ greatly.
+- The table/frequency method reduces calculation errors and aids intuition.
+
+5 - Common pitfalls and practical notes
+- Misplacing conditional probabilities (confusing P(A|B) with P(B|A)).
+- Forgetting to include all partitions in P(B) when computing evidence.
+- Rounding early leads to inaccurate posteriors.
+- Assuming independence incorrectly when events are not independent.
+- Choice of prior matters; sensitivity analysis can be useful.
+
+6 - Additional items from the PDF (team contributions and references)
+- Team member contributions (brief):
+  - Member A: UNet, CLIP features, robustness analysis.
+  - Member B: Prompt-based segmentation, autoencoder, UX.
+- Selected references (representative):
+  - Parkhi et al. (2012), Cats and dogs, CVPR.
+  - Radford et al. (2021), Learning transferable visual models from natural language supervision, ICML.
+  - Ronneberger et al. (2015), U-Net: convolutional networks for biomedical image segmentation, MICCAI.
+  - Shorten & Khoshgoftaar (2019), Survey on image data augmentation, Journal of Big Data.
+  - Simard et al. (2003), Best practices for convolutional networks.
+
+7 - Quick revision checklist
+- Understand definitions: prior, likelihood, evidence, posterior.
+- Memorize Bayes’ theorem: P(A|B) = P(B|A) P(A) / P(B).
+- Use the frequency/table method for clarity and error reduction.
+- Check that evidence includes all mutually exclusive partitions.
+- Perform sensitivity checks on priors when conclusions are critical.

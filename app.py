@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from pathlib import Path
 import time
+import base64
 from typing import List, Dict, Any
 
 from src.ingest import load_documents, chunk_documents
@@ -45,6 +46,27 @@ def list_notes() -> List[Dict[str, Any]]:
     return rows
 
 
+def _render_brand_header() -> None:
+    """Render a compact brand header with logo at top-left and title inline."""
+    logo_img_tag = ""
+    try:
+        if os.path.exists("16.png"):
+            with open("16.png", "rb") as lf:
+                encoded = base64.b64encode(lf.read()).decode()
+            # Keep logo modest so it aligns well with the H1 baseline
+            logo_img_tag = f'<img src="data:image/png;base64,{encoded}" alt="Edvance logo" style="height:48px;" />'
+    except Exception:
+        logo_img_tag = ""
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; gap:16px; padding:8px 0;">
+          {logo_img_tag}
+          <h1 style="margin:0;">Edvance Study Coach</h1>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def ensure_vectorstore_loaded() -> None:
     if "vs" not in st.session_state:
         # Load existing vectorstore if present
@@ -67,6 +89,34 @@ def reset_quiz_state() -> None:
     st.session_state.busy = False
 
 
+def ensure_quiz_state_initialized() -> None:
+    """Initialize quiz-related session_state keys only if missing.
+    Prevents accidental resets when navigating between tabs (Streamlit reruns).
+    """
+    defaults = {
+        "quiz_started": False,
+        "questions": [],
+        "current_idx": 0,
+        "answers": [],
+        "response_ms": [],
+        "feedbacks": [],
+        "correct_count": 0,
+        "q_start": None,
+        "step": "question",
+        "last_feedback": None,
+        "last_took_ms": 0,
+        "last_q": None,
+        "busy": False,
+        # Inputs
+        "quiz_topic": "",
+        "avoid_mode": "all",
+        "feedback_mode": "immediate",
+        "difficulty": None,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
 def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str) -> None:
     ensure_vectorstore_loaded()
     memory = JsonMemory(str(PROGRESS_PATH))
@@ -79,7 +129,9 @@ def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str) -> None:
 
     # Exclusions & difficulty
     excluded = memory.get_excluded_prompts(mode=avoid_mode, topic=topic)
-    difficulty = memory.get_adaptive_difficulty(topic)
+    # Prefer user-chosen difficulty if provided, else adapt from history
+    chosen = st.session_state.get("difficulty")
+    difficulty = chosen if chosen in {"easy", "medium", "hard"} else memory.get_adaptive_difficulty(topic)
 
     # Generate quiz
     quiz = generate_quiz(ctx, topic, n_questions=n, excluded_prompts=excluded, difficulty=difficulty)
@@ -154,33 +206,138 @@ def grade_and_log(i: int, q: Dict[str, Any], student_answer: str, took_ms: int) 
 
 def quiz_tab():
     st.subheader("Quiz")
+    # Spinner below handles transient loading; avoid extra banner at top
+    # Auto-recover quiz_started flag if questions persist (after tab switches)
+    if (not st.session_state.get("quiz_started", False)) and st.session_state.get("questions"):
+        st.session_state.quiz_started = True
     quiz_started = st.session_state.get("quiz_started", False)
 
-    topic = st.text_input("Topic", disabled=quiz_started)
-    cols = st.columns(3)
+    # Optional reference PDF/Notes preview (for context while answering)
+    notes = list_notes()
+    if notes:
+        file_names = [note["file"] for note in notes]
+        try:
+            default_idx = file_names.index(st.session_state.get("quiz_reference_file", file_names[0]))
+        except Exception:
+            default_idx = 0
+        reference_file = st.selectbox(
+            "Reference PDF/Notes (optional)",
+            file_names,
+            index=default_idx,
+            key="quiz_reference_file",
+            help="This preview is for reference only and does not affect the quiz generation."
+        )
+        ref_path = NOTES_DIR / reference_file
+        with st.expander("📄 PDF preview", expanded=False):
+            try:
+                if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
+                    with open(ref_path, "rb") as f:
+                        _bytes = f.read()
+                    import base64 as _b64
+                    b64 = _b64.b64encode(_bytes).decode()
+                    iframe = f"""
+                    <iframe src=\"data:application/pdf;base64,{b64}\" 
+                            width=\"100%\" height=\"1100px\" 
+                            style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
+                    """
+                    st.markdown(iframe, unsafe_allow_html=True)
+                elif ref_path.exists():
+                    try:
+                        text = ref_path.read_text(encoding="utf-8", errors="ignore")
+                    except Exception:
+                        text = "(Could not read file as text)"
+                    st.code(text[:5000], language="markdown")
+                else:
+                    st.caption("Selected reference file not found.")
+            except Exception as _e:
+                st.caption(f"Preview unavailable: {_e}")
+
+    # Reactive topic input: updates session_state on each keystroke
+    # Use a separate widget key and persist to a stable state key to survive tab switches
+    _persisted_topic = st.session_state.get("quiz_topic", "")
+    st.text_input("Topic", value=_persisted_topic, key="quiz_topic_input", disabled=quiz_started)
+    # Mirror widget value into persistent key every rerun (allowed: different key than widget)
+    st.session_state["quiz_topic"] = st.session_state.get("quiz_topic_input", _persisted_topic)
+    topic = st.session_state["quiz_topic"]
+    cols = st.columns(4)
     with cols[0]:
         n = st.number_input("Number of questions", min_value=1, max_value=10, value=4, step=1, disabled=quiz_started)
     with cols[1]:
-        avoid_mode = st.selectbox("Avoid prompts", options=["all", "correct"], index=0, disabled=quiz_started)
+        difficulty = st.selectbox(
+            "Difficulty",
+            options=["auto", "easy", "medium", "hard"],
+            index=["auto", "easy", "medium", "hard"].index(st.session_state.get("quiz_diff", "auto")),
+            disabled=quiz_started,
+            help="Choose difficulty or leave on auto to adapt based on history."
+        )
+        st.session_state["quiz_diff"] = difficulty
     with cols[2]:
+        avoid_mode = st.selectbox("Avoid prompts", options=["all", "correct"], index=0, disabled=quiz_started)
+    with cols[3]:
         feedback_mode = st.selectbox("Feedback mode", options=["immediate", "end"], index=0, disabled=quiz_started)
 
     if not quiz_started:
-        start_disabled = not topic.strip() or st.session_state.get("busy", False)
-        if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
-            reset_quiz_state()
-            start_quiz(topic.strip(), int(n), avoid_mode, feedback_mode)
-            st.rerun()
-    else:
-        # Show disabled Start and an active Stop button to end the quiz
+        # Do not require Topic text to start
+        start_disabled = st.session_state.get("busy", False)
         cols_btn = st.columns(2)
+        with cols_btn[0]:
+            if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
+                # Two-phase start: set flags then rerun so Stop & Reset appears immediately
+                st.session_state["quiz_generating"] = True
+                st.session_state["quiz_pending_start"] = {
+                    "n": int(n),
+                    "avoid_mode": avoid_mode,
+                    "feedback_mode": feedback_mode,
+                    "topic": st.session_state.get("quiz_topic", "").strip(),
+                    "difficulty": (None if st.session_state.get("quiz_diff") == "auto" else st.session_state.get("quiz_diff")),
+                }
+                st.rerun()
+        with cols_btn[1]:
+            # Stop & Reset available if there is anything to clear
+            can_reset = bool(
+                st.session_state.get("quiz_generating") or st.session_state.get("quiz_started") or st.session_state.get("busy", False)
+                or st.session_state.get("quiz_topic") or st.session_state.get("questions")
+            )
+            if st.button("⏹️ Stop & Reset", disabled=not can_reset, key="quiz_stop_reset_pre"):
+                reset_quiz_state()
+                for k in ["quiz_topic", "quiz_reference_file", "quiz_diff", "quiz_snapshot"]:
+                    st.session_state.pop(k, None)
+                st.session_state["quiz_generating"] = False
+                st.session_state.pop("quiz_pending_start", None)
+                st.rerun()
+    else:
+        # Show disabled Start, Stop, and Stop & Reset
+        cols_btn = st.columns(3)
         with cols_btn[0]:
             st.button("Start Quiz", disabled=True, key="start_quiz_disabled")
         with cols_btn[1]:
             if st.button("Stop", disabled=st.session_state.get("busy", False), key="stop_quiz"):
                 reset_quiz_state()
                 st.info("Quiz stopped. You can modify the settings and start again.")
+                _snapshot_quiz_state()
                 st.rerun()
+        with cols_btn[2]:
+            if st.button("⏹️ Stop & Reset", key="quiz_stop_reset_active"):
+                reset_quiz_state()
+                for k in ["quiz_topic", "quiz_reference_file", "quiz_diff", "quiz_snapshot"]:
+                    st.session_state.pop(k, None)
+                st.session_state["quiz_generating"] = False
+                st.session_state.pop("quiz_pending_start", None)
+                st.rerun()
+
+    # Handle pending quiz start after we have rendered buttons (so Stop & Reset is visible immediately)
+    pending = st.session_state.get("quiz_pending_start")
+    if pending:
+        st.session_state.busy = True
+        with st.spinner("Preparing quiz..."):
+            reset_quiz_state()
+            # Store difficulty for engine
+            st.session_state["difficulty"] = pending.get("difficulty")
+            start_quiz(pending.get("topic", ""), pending.get("n", 4), pending.get("avoid_mode", "all"), pending.get("feedback_mode", "immediate"))
+        st.session_state.busy = False
+        st.session_state["quiz_generating"] = False
+        st.session_state.pop("quiz_pending_start", None)
+        st.rerun()
 
     if not st.session_state.get("quiz_started"):
         return
@@ -332,13 +489,61 @@ def upload_tab():
         else:
             st.caption("These uploads have already been processed.")
 
-    # Always show current notes on disk (persists across page switches)
+    # Optional: light caption style for meta rows
+    st.markdown("""
+        <style>.file-meta{font-size:12px; color:rgba(128,128,128,0.9);}</style>
+    """, unsafe_allow_html=True)
+
+    # Current PDFs on disk with preview and delete
     notes = list_notes()
-    st.write("### Current notes on disk")
-    if notes:
-        st.dataframe(notes, use_container_width=True)
+    st.write("### Current PDFs")
+    pdf_notes = [n for n in notes if str(n.get("file", "")).lower().endswith(".pdf")]
+    if not pdf_notes:
+        st.caption("No PDFs found yet in data/notes.")
     else:
-        st.caption("No notes found yet in data/notes.")
+        for i, n in enumerate(pdf_notes):
+            rel = n.get("file", "")
+            size_kb = n.get("size_kb", "?")
+            modified = n.get("modified", "")
+            path = NOTES_DIR / rel
+            # Use native bordered container so all widgets are inside the same card
+            with st.container(border=True):
+                cols = st.columns([8, 1])
+                with cols[0]:
+                    st.markdown(f"**{rel}**")
+                    st.markdown(f"<div class='file-meta'>Size: {size_kb} KB • Modified: {modified}</div>", unsafe_allow_html=True)
+                with cols[1]:
+                    if st.button("🗑️ Delete", key=f"del_pdf_{i}"):
+                        try:
+                            if path.exists() and path.is_file():
+                                path.unlink()
+                                with st.spinner("Updating vector store..."):
+                                    docs = load_documents(str(NOTES_DIR))
+                                    chunks = chunk_documents(docs)
+                                    st.session_state.vs = build_or_load_vectorstore(chunks)
+                                st.success(f"Deleted {rel}.")
+                                st.rerun()
+                        except Exception as e:
+                            st.warning(f"Could not delete {rel}: {e}")
+
+                # PDF preview placed below the card
+                with st.expander("📄 PDF preview", expanded=False):
+                    try:
+                        if path.exists():
+                            with open(path, "rb") as f:
+                                _bytes = f.read()
+                            import base64 as _b64
+                            b64 = _b64.b64encode(_bytes).decode()
+                            iframe = f"""
+                            <iframe src=\"data:application/pdf;base64,{b64}\" 
+                                    width=\"100%\" height=\"1200px\" 
+                                    style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
+                            """
+                            st.markdown(iframe, unsafe_allow_html=True)
+                        else:
+                            st.caption("File not found.")
+                    except Exception as _e:
+                        st.caption(f"Preview unavailable: {_e}")
 
     # Show last vector store rebuild time if available
     if st.session_state.get("vs_built_at"):
@@ -378,9 +583,8 @@ def summary_tab():
     Generate beautiful, publication-quality PDF summaries of your course notes using advanced LaTeX formatting.
     Each summary includes your business branding and professional styling.
     """)
-    
-    # Add a visual separator
-    st.markdown("---")
+
+    # Actions row will be shown next to Generate button (added below)
     
     # Check if vector store is loaded
     ensure_vectorstore_loaded()
@@ -394,6 +598,31 @@ def summary_tab():
     # Create file selection dropdown
     file_names = [note["file"] for note in notes]
     selected_file = st.selectbox("Select PDF/Notes to summarize:", file_names)
+    # Preview the selected file (same preview feature as in Quiz)
+    ref_path = NOTES_DIR / selected_file
+    with st.expander("📄 PDF preview", expanded=False):
+        try:
+            if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
+                with open(ref_path, "rb") as f:
+                    _bytes = f.read()
+                import base64 as _b64
+                b64 = _b64.b64encode(_bytes).decode()
+                iframe = f"""
+                <iframe src=\"data:application/pdf;base64,{b64}\" 
+                        width=\"100%\" height=\"1200px\" 
+                        style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
+                """
+                st.markdown(iframe, unsafe_allow_html=True)
+            elif ref_path.exists():
+                try:
+                    text = ref_path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    text = "(Could not read file as text)"
+                st.code(text[:5000], language="markdown")
+            else:
+                st.caption("Selected reference file not found.")
+        except Exception as _e:
+            st.caption(f"Preview unavailable: {_e}")
     
     # Focus area input
     focus = st.text_input("Focus Area/Topic", placeholder="e.g., Bayes theorem, neural networks, calculus derivatives")
@@ -402,28 +631,61 @@ def summary_tab():
     summary_type = st.selectbox("Summary Type", ["Comprehensive", "Structured"], 
                                help="Comprehensive: General summary, Structured: Organized with specific sections")
     
-    # Generate button
-    if st.button("Generate Summary", disabled=not focus.strip() or not selected_file):
-        if not focus.strip():
-            st.warning("Please enter a focus area.")
-            return
-            
+    # Actions row: Generate and Stop & Reset side-by-side
+    action_cols = st.columns([1, 1, 6])
+    with action_cols[0]:
+        generate_clicked = st.button("Generate Summary", disabled=not focus.strip() or not selected_file)
+    with action_cols[1]:
+        is_generating = st.session_state.get("summary_generating", False)
+        has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
+        if st.button("⏹️ Stop & Reset", help="Cancel current generation and clear summary state", disabled=False if is_generating else not (is_generating or has_summary)):
+            for k in [
+                "last_summary_result",
+                "last_pdf_bytes",
+                "last_pdf_base64",
+                "last_pdf_filename",
+            ]:
+                st.session_state.pop(k, None)
+            st.session_state["saved_pdfs"] = []
+            st.session_state["summary_generating"] = False
+            st.session_state.pop("summary_pending", None)
+            st.rerun()
+
+    # Generate summary flow
+    if generate_clicked:
+        st.session_state["summary_generating"] = True
+        st.session_state["summary_pending"] = {
+            "focus": focus,
+            "selected_file": selected_file,
+            "summary_type": summary_type,
+        }
+        st.rerun()
+
+    pending_summary = st.session_state.get("summary_pending")
+    if pending_summary:
         with st.spinner("Generating summary..."):
             try:
                 # Retrieve context for the selected file and focus
-                context = retrieve_context(st.session_state.vs, focus, k=8)
+                context = retrieve_context(st.session_state.vs, pending_summary.get("focus", ""), k=8)
                 
                 if not context.strip():
                     st.warning("No relevant content found for this focus area. Try a different topic or check if the notes contain relevant information.")
-                    return
+                    st.session_state["summary_generating"] = False
+                    st.session_state.pop("summary_pending", None)
+                    st.rerun()
                 
                 # Import summary functions
                 from src.summary_engine import generate_enhanced_summary_with_pdf
                 
                 # Generate summary with PDF
-                result = generate_enhanced_summary_with_pdf(context, focus, selected_file, summary_type)
+                result = generate_enhanced_summary_with_pdf(
+                    context,
+                    pending_summary.get("focus", ""),
+                    pending_summary.get("selected_file", ""),
+                    pending_summary.get("summary_type", "Comprehensive"),
+                )
                 
-                if result["status"] == "success":
+                if result.get("status") == "success":
                     st.success("✅ Summary generated successfully!")
                     # Persist result and PDF so preview survives reruns (e.g., slider adjustments)
                     st.session_state["last_summary_result"] = result
@@ -443,14 +705,14 @@ def summary_tab():
                         st.session_state["last_pdf_bytes"] = None
                         st.session_state["last_pdf_base64"] = None
                         st.session_state["last_pdf_filename"] = None
-                    st.rerun()
-                    
                 else:
                     st.error(f"Error generating summary: {result.get('error', 'Unknown error')}")
-                    
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
                 st.exception(e)
+        st.session_state["summary_generating"] = False
+        st.session_state.pop("summary_pending", None)
+        st.rerun()
     
     # Persistent PDF preview (survives widget changes)
     persisted = st.session_state.get("last_summary_result")
@@ -600,8 +862,31 @@ def summary_tab():
 
 
 def main():
-    st.set_page_config(page_title="Study Coach", layout="wide")
-    st.title("Study Coach")
+    # Set page config with logo as page icon if available
+    try:
+        page_icon_path = "16.png" if os.path.exists("16.png") else None
+        st.set_page_config(page_title="Edvance Study Coach", page_icon=page_icon_path, layout="wide")
+    except Exception:
+        # Fallback without page icon (Streamlit disallows multiple set_page_config calls across reruns)
+        st.set_page_config(page_title="Edvance Study Coach", layout="wide")
+
+    # Hide Streamlit toolbar (Deploy), hamburger menu, and footer
+    st.markdown(
+        """
+        <style>
+        [data-testid="stToolbar"] { display: none !important; }
+        #MainMenu { visibility: hidden; }
+        footer { visibility: hidden; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Initialize state to persist across reruns/tab switches
+    ensure_quiz_state_initialized()
+
+    # Brand header (compact flex layout)
+    _render_brand_header()
 
     # Persistent navigation to prevent tab reset on rerun
     default_nav = st.session_state.get("nav", "Quiz")

@@ -1,0 +1,79 @@
+1. fefeg — Definition and scope
+- fefeg: the study-focus is Bayes' theorem and its application to diagnostic/inference problems.
+- Scope: prior probabilities, likelihoods, posterior probabilities, table method, and multi-hypothesis extension.
+- Goal: update beliefs about mutually exclusive, exhaustive causes after observing evidence.
+
+2. Core concepts
+- Prior: P(A) — initial probability of hypothesis A before new evidence.
+- Likelihood: P(E|A) — probability of observing evidence E if hypothesis A is true.
+- Posterior: P(A|E) — updated probability of A after observing E.
+- Marginal (evidence probability): P(E) — total probability of evidence across all hypotheses.
+- Conditions: hypotheses must be disjoint (mutually exclusive) and exhaustive (cover all possibilities).
+
+3. Bayes' theorem (basic form)
+- Formula: P(A|E) = P(E|A) P(A) / P(E)
+- Evidence probability (two hypotheses): P(E) = P(E|A)P(A) + P(E|not A)P(not A)
+- Multi-hypothesis extension: P(A_i|E) = P(A_i) P(E|A_i) / sum_j [P(A_j) P(E|A_j)]
+
+4. Intuition and use
+- Intuition: weight the prior by how likely the evidence is under the hypothesis, then normalize.
+- When P(E|A) is small relative to alternatives, posterior falls even if prior was large.
+- Data representation: convert percentages to counts (choose convenient total, e.g., 10,000) to visualize.
+
+5. Procedure (useful step-by-step)
+1 - List hypotheses A1, A2, ..., Ak with priors P(Ai).
+2 - For each Ai, get likelihood P(E|Ai).
+3 - Compute numerator_i = P(Ai) * P(E|Ai).
+4 - Compute denominator = sum_i numerator_i (this is P(E)).
+5 - Compute posterior: P(Ai|E) = numerator_i / denominator.
+6 - (Optional) Verify with contingency table counts.
+
+6. Worked example — Emergency Locator Transmitters (ELTs)
+- Given:
+  - Altigauge (A): P(A)=0.80, defect rate P(D|A)=0.04
+  - Bryant (B): P(B)=0.15, P(D|B)=0.06
+  - Chartair (C): P(C)=0.05, P(D|C)=0.09
+- Convert to counts for 10,000 units:
+  - A: total 8,000 → defective 0.04*8000 = 320; good 7,680
+  - B: total 1,500 → defective 0.06*1500 = 90; good 1,410
+  - C: total 500 → defective 0.09*500 = 45; good 455
+  - Totals: defective = 320+90+45 = 455; good = 9,545
+- Example 1 — P(A|D) (probability defective ELT came from Altigauge):
+  - Formula: P(A|D) = P(A)P(D|A) / [P(A)P(D|A) + P(B)P(D|B) + P(C)P(D|C)]
+  - Calculation: = (0.80*0.04) / (0.80*0.04 + 0.15*0.06 + 0.05*0.09)
+  - Numerator = 0.032; Denominator = 0.032 + 0.009 + 0.0045 = 0.0455
+  - Result = 0.032 / 0.0455 = 320/455 ≈ 0.703
+- Example 2 — P(B|D):
+  - = 0.009 / 0.0455 = 90/455 ≈ 0.198
+- Example 3 — P(C|D):
+  - = 0.0045 / 0.0455 = 45/455 ≈ 0.099
+- Example 4 — P(A|not D) (not defective):
+  - Use counts: P(A|not D) = 7680 / 9545 ≈ 0.8048
+  - Or via formula with P(not D|Ai) = 1 - P(D|Ai).
+
+7. Table method (practical tool)
+- Build contingency table with rows = hypotheses, columns = evidence states.
+- Fill using chosen population (e.g., 10,000) and rates.
+- Posterior is cell count for (Ai and E) divided by column total for E.
+- Advantage: avoids fraction algebra and reduces calculation errors.
+
+8. Important relationships and connections
+- Posterior depends on both prior and likelihood.
+- Large prior can be overcome by strongly contrary likelihoods.
+- With many low-prior hypotheses, one can still have non-negligible posterior if likelihood is high.
+- Bayes' theorem for sequential updating: current posterior becomes next prior when new evidence arrives.
+
+9. Common pitfalls and tips
+- Pitfall: using P(A|B) = P(B|A) (missing normalization by P(B)).
+- Pitfall: forgetting hypotheses must be exhaustive.
+- Tip: convert percentages to counts for clarity.
+- Tip: always compute denominator (P(E)) explicitly to check consistency.
+- Tip: round only at final step to avoid cumulative rounding error.
+
+10. Quick revision checklist
+- Verify hypotheses are disjoint and exhaustive.
+- Identify priors and likelihoods clearly.
+- Compute numerators P(Ai)P(E|Ai) for all i.
+- Sum numerators to get P(E).
+- Divide each numerator by P(E) to get posteriors.
+- Cross-check with contingency table when possible.

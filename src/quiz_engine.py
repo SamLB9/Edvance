@@ -107,6 +107,12 @@ def generate_quiz(
             "Generate straightforward, foundational questions. Favor recall and recognition over synthesis. "
             "Keep language simple, avoid multi-step reasoning, and avoid tricky distractors."
         )
+    elif difficulty == "medium":
+        difficulty_instructions = (
+            "\nAdjust difficulty: The student is at an intermediate level. "
+            "Generate a balanced mix of conceptual understanding and light reasoning. "
+            "Include some multi-step items but keep them approachable; avoid excessive trickiness."
+        )
     elif difficulty == "hard":
         difficulty_instructions = (
             "\nAdjust difficulty: The student is excelling. "
@@ -118,6 +124,7 @@ def generate_quiz(
         f"Topic: {topic}\n"
         f"Context (from course notes):\n---\n{context}\n---\n"
         f"Create {n_questions} questions that can be answered from the context."
+        f"\nChosen difficulty: {difficulty or 'auto'}"
         f"{avoidance_instructions}"
         f"{difficulty_instructions}"
     )
