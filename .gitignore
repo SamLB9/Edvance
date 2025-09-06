@@ -37,20 +37,11 @@ ENV/
 Thumbs.db
 
 # Project specific
-generated_summaries/*.pdf
-generated_summaries/*.tex
-generated_summaries/*.log
-generated_summaries/*.aux
-generated_summaries/*.out
-generated_summaries/*.toc
-generated_summaries/temp_*
-generated_summaries/*_pass*
-
-# Keep these in generated_summaries:
+generated_summaries/*
 !generated_summaries/16.png
-!generated_summaries/summary_*.txt
-!generated_summaries/debug_*.tex
-!generated_summaries/before_cleanup_*.tex
+
+data/notes/
+!data/notes/BayesTheorem.pdf
 
 # Vector store (can be regenerated)
 vectorstore/
