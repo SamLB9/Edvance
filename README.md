@@ -1,113 +1,170 @@
-## 🧑‍🏫 Study Coach — Streamlit Q&A App
+## 🧑‍🏫 Edvance Study Coach — Streamlit Q&A & PDF Summaries
 
-An **LLM-powered RAG (Retrieval-Augmented Generation) study coach** that ingests your notes (PDF/TXT/MD), generates adaptive quizzes, grades answers with structured feedback, and tracks progress over time. Includes a Streamlit web app and a CLI.
+An LLM-powered RAG study coach that:
+- ingests your notes (PDF/TXT/MD),
+- generates adaptive quizzes with feedback,
+- tracks progress,
+- and creates professional LaTeX → PDF summaries with a branded title page.
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--5-green.svg)](https://openai.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-API-green.svg)](https://openai.com)
 
-![Alt text](Streamlit_Q&A.png)
+---
 
 ## 🔑 Key features
-- **Upload Notes tab**: Upload PDFs/TXT/MD. Notes are saved to `data/notes/` and the vector store is rebuilt.
-- **Quiz tab**:
-  - Topic input, number of questions.
-  - Feedback mode: `immediate` (per-question) or `end` (after all).
-  - Avoid prompts: avoid repeating questions you’ve seen before (all or only those answered correctly).
-  - Adaptive difficulty: easier if <50% accuracy, harder reasoning if ≥80%.
-  - Clean inline feedback: “Correct/Incorrect + explanation”. Shows the correct option for MCQs.
-- **Progress tab**: Session summary and frequently missed questions per topic (with error rate and avg response time).
-- **Persistent memory**: `progress.json` logs sessions and per-question attempts with timing.
+
+### 1) Upload Notes
+- Upload PDF/TXT/MD files (stored in `data/notes/`).
+- A Chroma vector store is (re)built so content is searchable.
+- Clean “file card” list:
+  - PDF preview expander (1200px)
+  - Delete per file (auto rebuilds vector store)
+
+### 2) Quiz
+- Topic (optional), Number of questions, Avoid prompts, Feedback mode (immediate/end).
+- Difficulty combobox: `auto`, `easy`, `medium`, `hard`.
+  - If `auto`, the engine uses adaptive difficulty (based on past performance).
+- Non-blocking UI:
+  - “Start Quiz” shows a spinner and immediately enables “Stop & Reset”.
+  - State persists across tab switches.
+- Per-question feedback (immediate) or batch feedback (end).
+- Progress and attempts are logged.
+
+### 3) Summary (Professional PDF)
+- Select a note and optionally set a Focus (leave empty to summarize the whole PDF).
+- PDF preview expander for the source note.
+- Generate Summary:
+  - The app sends cleaned content to the LLM for LaTeX body generation.
+  - A standardized LaTeX preamble/title page is used (consistent branding, colors, logo).
+  - Compiles with `pdflatex` (2 passes).
+- Filename policy:
+  - `summary_{pdf_name}_{focus}.pdf`
+  - If exists, de-dupes as `..._1.pdf`, `..._2.pdf`, etc.
+- PDF metadata (pdftitle) is set so viewers show a friendly title.
+- Download & Save options:
+  - Save PDF to Session (prevent duplicate saves; shows auto-dismissing toast)
+  - Download PDF
+  - Download Markdown (backup)
+- Saved PDFs:
+  - Listed with metadata (focus/source/generated) and inline 1200px preview.
+  - Remove any saved PDF.
+- Error handling:
+  - Errors/warnings appear in the app and auto-dismiss after a short time (without freezing the UI).
+  - “Stop & Reset” clears only the current preview/generation state (saved PDFs remain).
+
+---
+
+## ⚙️ How it works
+
+### Ingestion & Retrieval
+- `src/ingest.py`: loads/chunks documents.
+- `src/retriever.py`: builds/loads a Chroma vector store (`vectorstore/`) and retrieves top-k relevant chunks.
+
+### Quiz Engine
+- `src/quiz_engine.py` generates structured JSON for MCQs/short answers.
+- Difficulty is either user-selected (`easy|medium|hard`) or auto (based on past accuracy).
+- `src/evaluation.py` grades with `{correct: bool, feedback: str}`.
+
+### Memory & Adaptivity
+- `src/memory.py` logs:
+  - sessions (topic, score, timestamp, difficulty, feedback mode),
+  - per-attempt data (prompt, answer, correct, response time),
+  - aggregates for frequently missed items.
+
+### Summary Engine
+- `src/summary_engine.py` orchestrates:
+  - LLM call → LaTeX body,
+  - standard preamble/title page (logo, colors, header/footer),
+  - file naming (de-dupe),
+  - `pdflatex` compilation with logs,
+  - error surfacing in the app.
+- `src/dynamic_latex_generator.py`:
+  - prompts the LLM to produce LaTeX body only,
+  - wraps it with a consistent preamble/title page,
+  - sets PDF metadata title (`pdftitle`) to match the real filename.
+
+---
+
+## 🗂️ Project structure
+
+```text
+Student_Coach_Q-A/
+  app.py                         # Streamlit UI (Upload Notes, Quiz, Progress, Summary)
+  requirements.txt
+  .gitignore
+  16.png                         # App/logo (used in PDFs)
+  data/notes/                    # Uploaded notes (ignored by git)
+  generated_summaries/           # Generated PDFs & debug (ignored by git, except 16.png if present)
+  vectorstore/                   # Chroma DB files (ignored by git)
+  progress.json                  # Session/progress log
+  src/
+    config.py                    # Model settings
+    ingest.py                    # Load + chunk documents
+    retriever.py                 # Build/load vector store, retrieve context
+    quiz_engine.py               # Generate quiz JSON (difficulty-aware)
+    evaluation.py                # Grade answers with feedback
+    memory.py                    # JSON memory for sessions/attempts/aggregates
+    summary_engine.py            # PDF summary orchestration (naming, compile, errors)
+    dynamic_latex_generator.py   # LLM → LaTeX body, standardized preamble/title page
+```
+
+---
 
 ## ⚡ Quickstart
 
-### 🛠️ Requirements
-- 🐍 Python 3.10+ recommended
-- 🔑 An OpenAI API key (stored in a local `.env` file)
+### Requirements
+- Python 3.10+
+- OpenAI API key
 
-Install dependencies (optional but recommended to use a virtualenv):
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the project root (do NOT commit this file):
+Create `.env` in the project root:
 ```env
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-### 🚀 Launch the Streamlit app
+### Run the app
 ```bash
 streamlit run app.py
 ```
-- 1️⃣ Tab 1: Upload notes → files go to `data/notes/` and the vector store rebuilds
-- 2️⃣ Tab 2: Quiz → choose topic, options, and start
-- 3️⃣ Tab 3: Progress → view sessions and frequently missed questions
 
-### 💻 CLI usage (optional)
-Run a quiz from the terminal:
+Tabs:
+- Upload Notes → add PDFs/TXT/MD (vector store rebuilds)
+- Quiz → configure and start; difficulty auto or fixed
+- Progress → see sessions + frequently missed
+- Summary → generate professional PDF (focus optional), preview/save/download
+
+---
+
+## 🛠️ Troubleshooting
+
+- PDF name at viewer top looks odd:
+  - We set PDF metadata (`pdftitle`) to `summary_{pdf_name}_{focus}` so browsers show a friendly name.
+- “Stop & Reset”:
+  - In Summary, only clears the current preview and pending generation; it does not delete Saved PDFs.
+- Duplicate save message:
+  - Shows non-blocking toast; auto-dismisses shortly (no UI freeze).
+- Generated outputs & uploads in git:
+  - The repo ignores `generated_summaries/*` (except `16.png`) and `data/notes/*`.
+
+---
+
+## 💻 CLI (optional)
+
+Run a quiz from terminal:
 ```bash
 python -m src.main --topic "Bayes theorem" --n 4 --avoid all --feedback immediate
 ```
-Flags (CLI):
-- 🎯 `--topic` (required): quiz topic
-- 🔢 `--n`: number of questions (default 4)
-- 🔄 `--avoid`: `all` to avoid all past prompts, `correct` to avoid only correctly answered ones
-- ⚡ `--feedback`: `immediate` or `end`
-- 📂 `--docs`: notes folder (default `data/notes`)
-- 🛠️ `--rebuild`: rebuild vector store (if needed)
 
-## 🧠 How it works
-
-### 📥 Ingestion and retrieval
-- Notes are chunked and embedded using LangChain + OpenAI embeddings.
-- A Chroma vector store (`vectorstore/`) is used to retrieve relevant context for the quiz.
-
-### 📝 Quiz generation and grading
-- `src/quiz_engine.py` calls the LLM to generate structured JSON (MCQ + short-answer).
-- `src/evaluation.py` grades each answer and returns `{correct: bool, feedback: str}`.
-
-### 🧩 Memory and adaptivity
-- `src/memory.py` logs:
-  - `sessions`: topic, score, timestamp, details
-  - `attempts`: each question’s prompt, student answer, correctness, `response_ms`
-  - `questions` aggregate: `times_asked`, `last_correct`, `avg_response_ms`, etc.
-- Avoid prompts uses history (topic-scoped) to reduce repetition.
-- Difficulty adapts by topic accuracy (<50% → easy; 50–79% → medium; ≥80% → hard).
-
-Example `progress.json` (trimmed):
-```json
-{
-  "sessions": [
-    {"timestamp": "2025-08-20T12:35:01Z", "topic": "Bayes theorem", "score": 75.0,
-     "details": {"raw": "3/4", "avoid_mode": "all", "difficulty": "medium", "feedback_mode": "immediate"}}
-  ],
-  "attempts": [
-    {"timestamp": "2025-08-20T12:34:10Z", "topic": "Bayes theorem",
-     "question_id": "a1b2c3d4e5f6a7b8", "prompt": "State Bayes' theorem...",
-     "student_answer": "P(A|B)=...", "correct": true, "response_ms": 9342}
-  ]
-}
-```
-
-## 🗂️ Project structure
-```text
-Q&A_Agent/
-  app.py                 # Streamlit app (Upload Notes, Quiz, Progress)
-  requirements.txt
-  src/
-    config.py            # model settings
-    ingest.py            # load and chunk documents
-    retriever.py         # build/load Chroma, retrieve context
-    quiz_engine.py       # generate quiz JSON
-    evaluation.py        # grade answers, return {correct, feedback}
-    memory.py            # JSON memory: sessions, attempts, aggregates
-    main.py              # CLI quiz runner
-  data/notes/            # uploaded notes (ignored via .gitignore)
-  vectorstore/           # Chroma DB files (ignored via .gitignore)
-  progress.json          # progress log (ignored via .gitignore)
-```
-
-## 🛠️ Troubleshooting
-- ⚠️ Chroma deprecation warnings: we’re using `langchain_chroma`; ensure `langchain-chroma` is installed.
+Flags:
+- `--topic`: topic
+- `--n`: number of questions (default 4)
+- `--avoid`: `all` or `correct`
+- `--feedback`: `immediate` | `end`
+- `--docs`: notes folder (default `data/notes`)
+- `--rebuild`: rebuild vector store
