@@ -55,18 +55,9 @@ def generate_latex_code(summary_data: Dict[str, Any], logo_path: str = None) -> 
         # Initialize GPT model
         llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.5)
         
-        # Debug: Print what we're sending to the LLM
-        print(f"🔍 DEBUG: Summary data keys: {list(summary_data.keys())}")
-        print(f"🔍 DEBUG: Summary content length: {len(summary_data.get('summary', ''))}")
-        print(f"🔍 DEBUG: Summary content preview: {summary_data.get('summary', '')[:200]}...")
-        
         # Generate LaTeX code
         response = llm.invoke(prompt)
         raw_latex_content = response.content
-        
-        # Debug: Print what the LLM returned
-        print(f"🔍 DEBUG: LLM response length: {len(raw_latex_content)}")
-        print(f"🔍 DEBUG: LLM response preview: {raw_latex_content[:300]}...")
         
         # Clean up the response (remove any markdown formatting)
         latex_content = raw_latex_content
@@ -79,9 +70,7 @@ def generate_latex_code(summary_data: Dict[str, Any], logo_path: str = None) -> 
         
         latex_content = latex_content.strip()
         
-        # NO CLEANUP - Use raw LLM output to see what it generates
-        print("📝 Using raw LLM output without any cleanup")
-        # Just normalize color names to ensure basic compatibility
+        # Normalize color names to ensure basic compatibility
         latex_content = normalize_color_names(latex_content)
 
         # Now create the complete document with standardized title page

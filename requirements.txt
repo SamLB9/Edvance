@@ -3,6 +3,7 @@ openai>=1.40.0
 langchain
 langchain-openai
 langchain-chroma
+langchain_community
 chromadb
 pypdf
 tiktoken

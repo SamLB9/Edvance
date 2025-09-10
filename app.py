@@ -3,7 +3,13 @@ import os
 from pathlib import Path
 import time
 import base64
+import threading
+import warnings
 from typing import List, Dict, Any
+
+# Suppress warnings for better performance
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="streamlit")
 
 from src.ingest import load_documents, chunk_documents
 from src.retriever import build_or_load_vectorstore, retrieve_context
@@ -11,9 +17,25 @@ from src.quiz_engine import generate_quiz
 from src.evaluation import grade_answer
 from src.memory import JsonMemory
 from src.flashcards_engine import generate_flashcards, to_tsv, to_csv_quizlet, to_markdown
+from src.performance_config import PDF_PREVIEW_CACHE_LIMIT, DISABLE_DEBUG_OUTPUT
 
 NOTES_DIR = Path("data/notes")
 PROGRESS_PATH = Path("progress.json")
+
+# Global flag for background pre-loading
+_preload_started = False
+
+def _preload_embeddings():
+    """Pre-load embeddings in background thread"""
+    global _preload_started
+    if not _preload_started:
+        _preload_started = True
+        try:
+            # Pre-load embeddings to warm up the cache
+            from src.retriever import _get_embeddings
+            _get_embeddings()
+        except Exception:
+            pass  # Ignore errors in background thread
 
 
 def ensure_notes_dir() -> None:
@@ -27,10 +49,14 @@ def save_uploaded_files(files: List[st.runtime.uploaded_file_manager.UploadedFil
         dest = NOTES_DIR / uf.name
         dest.write_bytes(uf.getbuffer())
         saved.append(dest)
+    # Clear notes cache when files are uploaded
+    _list_notes_cached.clear()
     return saved
 
 
-def list_notes() -> List[Dict[str, Any]]:
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def _list_notes_cached() -> List[Dict[str, Any]]:
+    """Cached notes listing"""
     ensure_notes_dir()
     rows: List[Dict[str, Any]] = []
     for p in sorted(NOTES_DIR.rglob("*")):
@@ -45,6 +71,10 @@ def list_notes() -> List[Dict[str, Any]]:
             except Exception:
                 rows.append({"file": str(p.relative_to(NOTES_DIR)), "size_kb": None, "modified": None})
     return rows
+
+def list_notes() -> List[Dict[str, Any]]:
+    # Use cached version for better performance
+    return _list_notes_cached()
 
 
 def _render_brand_header() -> None:
@@ -71,13 +101,27 @@ def _render_brand_header() -> None:
         unsafe_allow_html=True,
     )
 
+@st.cache_resource
+def _load_vectorstore():
+    """Cached vector store loading"""
+    return build_or_load_vectorstore([])
+
 def ensure_vectorstore_loaded() -> None:
+    """Lazy load vector store only when needed"""
     if "vs" not in st.session_state:
-        # Load existing vectorstore if present
-        st.session_state.vs = build_or_load_vectorstore([])
+        # Only show spinner if we're actually loading
+        if not st.session_state.get("vs_loading", False):
+            st.session_state["vs_loading"] = True
+            with st.spinner("Loading vector store..."):
+                st.session_state.vs = _load_vectorstore()
+            st.session_state["vs_loading"] = False
+        else:
+            # If already loading, just wait
+            st.session_state.vs = _load_vectorstore()
 
 
 def reset_quiz_state() -> None:
+    """Reset only quiz-related state, not summary state"""
     st.session_state.quiz_started = False
     st.session_state.questions = []
     st.session_state.current_idx = 0
@@ -91,6 +135,9 @@ def reset_quiz_state() -> None:
     st.session_state.last_took_ms = 0
     st.session_state.last_q = None
     st.session_state.busy = False
+    # Clear quiz-specific state
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
 
 
 def ensure_quiz_state_initialized() -> None:
@@ -299,6 +346,11 @@ def grade_and_log(i: int, q: Dict[str, Any], student_answer: str, took_ms: int) 
 
 def quiz_tab():
     st.subheader("Quiz")
+    
+    # Clear any summary-related state when entering quiz tab
+    st.session_state.pop("summary_generating", None)
+    st.session_state.pop("summary_pending", None)
+    
     # Spinner below handles transient loading; avoid extra banner at top
     # Auto-recover quiz_started flag if questions persist (after tab switches)
     if (not st.session_state.get("quiz_started", False)) and st.session_state.get("questions"):
@@ -324,10 +376,17 @@ def quiz_tab():
         with st.expander("📄 PDF preview", expanded=False):
             try:
                 if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
-                    with open(ref_path, "rb") as f:
-                        _bytes = f.read()
-                    import base64 as _b64
-                    b64 = _b64.b64encode(_bytes).decode()
+                    # Cache PDF base64 to avoid repeated encoding
+                    cache_key = f"pdf_preview_{ref_path.name}_{ref_path.stat().st_mtime}"
+                    if cache_key not in st.session_state:
+                        with open(ref_path, "rb") as f:
+                            _bytes = f.read()
+                        import base64 as _b64
+                        b64 = _b64.b64encode(_bytes).decode()
+                        st.session_state[cache_key] = b64
+                    else:
+                        b64 = st.session_state[cache_key]
+                    
                     iframe = f"""
                     <iframe src=\"data:application/pdf;base64,{b64}\" 
                             width=\"100%\" height=\"1100px\" 
@@ -417,7 +476,7 @@ def quiz_tab():
 
     if not quiz_started:
         # Do not require Topic text to start
-        start_disabled = st.session_state.get("busy", False)
+        start_disabled = st.session_state.get("busy", False) or st.session_state.get("quiz_generating", False)
         cols_btn = st.columns(2)
         with cols_btn[0]:
             if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
@@ -464,7 +523,7 @@ def quiz_tab():
                 }
                 st.rerun()
         with cols_btn[1]:
-            # Stop & Reset available if there is anything to clear
+            # Stop & Reset available if there is anything to clear (quiz-specific only)
             can_reset = bool(
                 st.session_state.get("quiz_generating") or st.session_state.get("quiz_started") or st.session_state.get("busy", False)
                 or st.session_state.get("quiz_topic") or st.session_state.get("questions")
@@ -473,9 +532,7 @@ def quiz_tab():
                 reset_quiz_state()
                 for k in ["quiz_topic", "quiz_reference_file", "quiz_diff", "quiz_snapshot"]:
                     st.session_state.pop(k, None)
-                st.session_state["quiz_generating"] = False
-                st.session_state.pop("quiz_pending_start", None)
-            st.rerun()
+                st.rerun()
     else:
         # Show disabled Start and Stop & Reset only
         cols_btn = st.columns(2)
@@ -486,8 +543,6 @@ def quiz_tab():
                 reset_quiz_state()
                 for k in ["quiz_topic", "quiz_reference_file", "quiz_diff", "quiz_snapshot"]:
                     st.session_state.pop(k, None)
-                st.session_state["quiz_generating"] = False
-                st.session_state.pop("quiz_pending_start", None)
                 st.rerun()
 
     # Debug output (optional, non-blocking) — disabled by default; set to True to re-enable
@@ -663,6 +718,13 @@ def finish_quiz() -> None:
 def upload_tab():
     st.subheader("Upload Notes")
     st.write("Upload PDF, TXT, or MD files to include in your study notes.")
+    
+    # Clear any quiz/summary-related state when entering upload tab
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
+    st.session_state.pop("summary_generating", None)
+    st.session_state.pop("summary_pending", None)
+    
     files = st.file_uploader("Upload files", type=["pdf", "txt", "md"], accept_multiple_files=True)
     if files:
         # Build a signature of current upload set (name + size) to avoid repeated rebuilds on rerun
@@ -678,6 +740,12 @@ def upload_tab():
                 st.session_state.vs = build_or_load_vectorstore(chunks)
             st.session_state.last_upload_sig = sig
             st.session_state.vs_built_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            # Clear caches when vector store is rebuilt
+            _list_notes_cached.clear()
+            _load_vectorstore.clear()
+            pdf_cache_keys = [k for k in st.session_state.keys() if k.startswith("pdf_preview_")]
+            for key in pdf_cache_keys:
+                st.session_state.pop(key, None)
             st.success(f"Uploaded {len(saved)} files. Vector store rebuilt.")
             st.balloons()
         else:
@@ -711,6 +779,9 @@ def upload_tab():
                         try:
                             if path.exists() and path.is_file():
                                 path.unlink()
+                                # Clear caches
+                                _list_notes_cached.clear()
+                                _load_vectorstore.clear()
                                 with st.spinner("Updating vector store..."):
                                     docs = load_documents(str(NOTES_DIR))
                                     chunks = chunk_documents(docs)
@@ -744,14 +815,26 @@ def upload_tab():
         st.caption(f"Vector store last built at: {st.session_state.vs_built_at}")
 
 
-def progress_tab():
-    st.subheader("Progress")
+@st.cache_data(ttl=60)  # Cache for 1 minute
+def _get_progress_data():
+    """Cached progress data loading"""
     memory = JsonMemory(str(PROGRESS_PATH))
     try:
         data = memory._read()
     except Exception:
         data = {"sessions": [], "attempts": [], "questions": {}}
+    return data
 
+def progress_tab():
+    st.subheader("Progress")
+    
+    # Clear any quiz/summary-related state when entering progress tab
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
+    st.session_state.pop("summary_generating", None)
+    st.session_state.pop("summary_pending", None)
+    
+    data = _get_progress_data()
     sessions = data.get("sessions", [])
 
     st.write("### Sessions")
@@ -764,6 +847,7 @@ def progress_tab():
     topics = sorted({s.get("topic", "") for s in sessions if s.get("topic")})
     topic = st.selectbox("Topic", options=topics or [""], index=0 if topics else 0)
     if topic:
+        memory = JsonMemory(str(PROGRESS_PATH))
         missed = memory.get_frequently_missed(topic, min_attempts=1, limit=10)
         if missed:
             st.dataframe(missed, use_container_width=True)
@@ -778,7 +862,14 @@ def summary_tab():
     Each summary includes your business branding and professional styling.
     """)
     
-    # Actions row will be shown next to Generate button (added below)
+    # Clear any quiz-related state when entering summary tab
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
+    
+    # Ensure we're not in quiz mode when in summary tab
+    if st.session_state.get("quiz_started", False):
+        st.info("Please finish or reset your current quiz before generating summaries.")
+        return
     
     # Check if vector store is loaded
     ensure_vectorstore_loaded()
@@ -1073,6 +1164,13 @@ def summary_tab():
     # Debug & Troubleshooting removed per request
 def flashcards_tab():
     st.subheader("Flash Card Generator")
+    
+    # Clear any quiz/summary-related state when entering flashcards tab
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
+    st.session_state.pop("summary_generating", None)
+    st.session_state.pop("summary_pending", None)
+    
     # Initialize session containers
     if "fc_deck_meta" not in st.session_state:
         st.session_state["fc_deck_meta"] = {"name": "", "subject": "", "default_tags": []}
@@ -1487,6 +1585,23 @@ def flashcards_tab():
                         st.rerun()
 
 
+def cleanup_session_state():
+    """Clean up old session state to prevent memory leaks"""
+    # Keep only essential keys and recent data
+    essential_keys = {
+        "vs", "quiz_started", "questions", "current_idx", "answers", "response_ms", 
+        "feedbacks", "correct_count", "q_start", "step", "last_feedback", "last_took_ms", 
+        "last_q", "busy", "quiz_topic", "avoid_mode", "feedback_mode", "difficulty", 
+        "quiz_n", "nav", "notes_list_cache"
+    }
+    
+    # Clean up old PDF preview caches (keep only last N)
+    pdf_cache_keys = [k for k in st.session_state.keys() if k.startswith("pdf_preview_")]
+    if len(pdf_cache_keys) > PDF_PREVIEW_CACHE_LIMIT:
+        # Remove oldest caches
+        for key in pdf_cache_keys[:-PDF_PREVIEW_CACHE_LIMIT]:
+            st.session_state.pop(key, None)
+
 def main():
     # Set page config with logo as page icon if available
     try:
@@ -1495,6 +1610,12 @@ def main():
     except Exception:
         # Fallback without page icon (Streamlit disallows multiple set_page_config calls across reruns)
         st.set_page_config(page_title="Edvance Study Coach", layout="wide")
+    
+    # Start background pre-loading of embeddings
+    threading.Thread(target=_preload_embeddings, daemon=True).start()
+    
+    # Clean up session state periodically
+    cleanup_session_state()
 
     # Hide Streamlit toolbar (Deploy), hamburger menu, and footer
     st.markdown(
@@ -1510,9 +1631,6 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Initialize state to persist across reruns/tab switches
-    ensure_quiz_state_initialized()
-
     # Brand header (compact flex layout)
     _render_brand_header()
 
@@ -1525,6 +1643,15 @@ def main():
         horizontal=True,
         key="nav",
     )
+
+    # Initialize state only when needed (lazy initialization)
+    if selected_nav in ["Quiz", "Summary", "Flash Cards"]:
+        ensure_quiz_state_initialized()
+        ensure_vectorstore_loaded()
+    elif selected_nav == "Progress":
+        # Only initialize minimal state for progress tab
+        if "nav" not in st.session_state:
+            st.session_state["nav"] = selected_nav
 
     if selected_nav == "Upload Notes":
         upload_tab()

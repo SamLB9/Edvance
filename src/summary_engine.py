@@ -113,10 +113,6 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
         abs_output_dir = os.path.abspath(output_dir)
         os.makedirs(abs_output_dir, exist_ok=True)
         
-        # Timestamp for debug filenames
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
         # Build target filename: summary_{pdf_name}_{focus}.pdf with de-dupe suffixes
         def _clean(s: str) -> str:
             return (
@@ -146,23 +142,8 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
 
         pdf_filename = candidate
         pdf_path = candidate_path
-
-        # Also set temp names for LaTeX compilation
-        temp_pdf_filename = f"temp_{base_name}.pdf"
-        temp_pdf_path = os.path.join(abs_output_dir, temp_pdf_filename)
         
-        # Save raw summary text for debug purposes
-        summary_txt_filename = f"summary_{timestamp}.txt"
-        summary_txt_path = os.path.join(abs_output_dir, summary_txt_filename)
-        try:
-            with open(summary_txt_path, 'w', encoding='utf-8') as f:
-                f.write(summary_data.get('summary', 'No summary available'))
-            print(f"📝 Debug: Raw summary saved to {summary_txt_path}")
-        except Exception as e:
-            print(f"⚠️ Could not save summary text file: {e}")
-
         # Generate LaTeX code dynamically using GPT
-        print("🔧 Generating LaTeX code with GPT...")
         try:
             # Prepare logo: copy into output directory so LaTeX can find it during compilation
             logo_path = None
@@ -170,20 +151,8 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
                 logo_dest = os.path.join(abs_output_dir, "16.png")
                 shutil.copy2("16.png", logo_dest)
                 logo_path = logo_dest
-                print(f"✅ Copied logo to output dir: {logo_dest}")
             
             raw_latex_content, latex_content = generate_latex_code(summary_data, logo_path)
-            print(f"✅ LaTeX code generated successfully. Length: {len(latex_content)}")
-            
-            # Save LaTeX code before cleanup for debug purposes
-            before_cleanup_tex_filename = f"before_cleanup_summary_{focus_clean}_{timestamp}.tex"
-            before_cleanup_tex_path = os.path.join(abs_output_dir, before_cleanup_tex_filename)
-            try:
-                with open(before_cleanup_tex_path, 'w', encoding='utf-8') as f:
-                    f.write(raw_latex_content)
-                print(f"📝 Debug: LaTeX before cleanup saved to {before_cleanup_tex_path}")
-            except Exception as e:
-                print(f"⚠️ Could not save before-cleanup LaTeX file: {e}")
             
         except Exception as e:
             print(f"Error generating LaTeX with GPT: {e}")
@@ -198,68 +167,24 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
             with open(tex_file_path, 'w', encoding='utf-8') as f:
                 f.write(latex_content)
             
-            # Debug: Save a copy of the LaTeX content for inspection
-            debug_tex_path = os.path.join(abs_output_dir, f"debug_{focus_clean}_{timestamp}.tex")
-            with open(debug_tex_path, 'w', encoding='utf-8') as f:
-                f.write(latex_content)
-            print(f"📝 Debug LaTeX saved to: {debug_tex_path}")
-            
-            # Compile LaTeX to PDF (two passes), write logs to files for debugging
-            def run_pdflatex(pass_num: int) -> subprocess.CompletedProcess:
-                print(f"▶️ Running pdflatex pass {pass_num}...")
-                result_local = subprocess.run(
-                    ['pdflatex', '-interaction=nonstopmode', tex_filename],
-                    capture_output=True,
-                    text=False,
-                    cwd=abs_output_dir
-                )
-                log_base = os.path.join(abs_output_dir, tex_filename.replace('.tex', f'_pass{pass_num}'))
-                try:
-                    with open(log_base + '.stdout.txt', 'wb') as lf:
-                        lf.write(result_local.stdout or b'')
-                    with open(log_base + '.stderr.txt', 'wb') as lf:
-                        lf.write(result_local.stderr or b'')
-                    print(f"🪵 Saved pdflatex logs to {log_base}.[stdout|stderr].txt")
-                except Exception as log_err:
-                    print(f"⚠️ Could not save pdflatex logs: {log_err}")
-                try:
-                    stdout_preview = (result_local.stdout or b'').decode('utf-8', errors='replace')
-                    stderr_preview = (result_local.stderr or b'').decode('utf-8', errors='replace')
-                except Exception:
-                    stdout_preview, stderr_preview = '', ''
-                print(f"pdflatex pass {pass_num} rc={result_local.returncode}")
-                if stdout_preview:
-                    print(f"stdout preview: {stdout_preview[:200]}...")
-                if stderr_preview:
-                    print(f"stderr preview: {stderr_preview[:200]}...")
-                return result_local
-
-            # Run pdflatex twice for proper cross-references
-            result1 = run_pdflatex(1)
-            result2 = run_pdflatex(2)
+            # Compile LaTeX to PDF (single pass for speed)
+            result = subprocess.run(
+                ['pdflatex', '-interaction=nonstopmode', tex_filename],
+                capture_output=True,
+                text=True,
+                cwd=abs_output_dir
+            )
             
             # Check if PDF was generated
             pdf_generated = False
             if os.path.exists(pdf_path):
                 pdf_generated = True
-                print(f"✅ PDF generated: {pdf_path}")
-            elif os.path.exists(temp_pdf_path):
-                # Sometimes LaTeX creates files with temp_ prefix
-                shutil.move(temp_pdf_path, pdf_path)
-                pdf_generated = True
-                print(f"PDF generated with temp name: {temp_pdf_path}")
-                print(f"PDF renamed to: {pdf_path}")
             else:
-                # Check for any PDF files with similar names
-                import glob
-                pattern = os.path.join(abs_output_dir, f"*{focus_clean}*.pdf")
-                pdf_files = glob.glob(pattern)
-                if pdf_files:
-                    # Use the most recent one
-                    latest_pdf = max(pdf_files, key=os.path.getctime)
-                    shutil.move(latest_pdf, pdf_path)
+                # Check for temp PDF file
+                temp_pdf_path = os.path.join(abs_output_dir, f"temp_{base_name}.pdf")
+                if os.path.exists(temp_pdf_path):
+                    shutil.move(temp_pdf_path, pdf_path)
                     pdf_generated = True
-                    print(f"Found and moved existing PDF: {latest_pdf} -> {pdf_path}")
             
             if not pdf_generated:
                 raise Exception("PDF was not generated. Check LaTeX compilation logs for errors.")
@@ -277,9 +202,8 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
                 aux_file = tex_file_path.replace('.tex', ext)
                 if os.path.exists(aux_file):
                     os.unlink(aux_file)
-            print("✅ Temporary files cleaned up")
-        except Exception as cleanup_error:
-            print(f"Warning: Could not clean up temporary files: {cleanup_error}")
+        except Exception:
+            pass  # Ignore cleanup errors
         
     except Exception as e:
         raise Exception(f"Error generating PDF: {str(e)}")
