@@ -44,7 +44,7 @@ data/notes/*
 !data/notes/BayesTheorem.pdf
 
 # Vector store (can be regenerated)
-vectorstore/
+!vectorstore/
 
 # Progress data (optional - you might want to keep this)
 # progress.json
