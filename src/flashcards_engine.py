@@ -93,24 +93,28 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
 
     # Build the user prompt by concatenating strings to avoid f-string backslash issues
     latex_example = r"$P(A|B)=\frac{P(B|A)P(A)}{P(B)}$"
-    user_prompt = (
-        f"Topic hint: {topic or '(auto)'}\n"
-        f"Content:\n---\n{context[:8000]}\n---\n"
-        f"Create {n} cards. {typeline}\n"
-        f"{mix_hint}"
-        f"{type_hint}"
-        "Rules:\n"
-        "- Each card must test a concept from the content (definitions, key formulas, assumptions, implications, examples).\n"
-        "- Forbidden: questions about document structure (pages, lines, fonts, numerals) or generic number trivia.\n"
-        f"{len_hint or '- Front ≤ 18 words; Back ≤ 60 words.\n'}"
-        "- Tags: 1–3 short tags (e.g., bayes, posterior, likelihood).\n"
-        "- For cloze, use Anki syntax {{c1::...}} in the FRONT; BACK is a short elaboration.\n"
-        "- If formulas are present (e.g., P(A|B), Bayes, sums/products, fractions), include formula-focused cards.\n"
-        "  Prioritize: (1) the exact Bayes' theorem formula, (2) the multi-category version with a denominator sum, \n"
-        "  (3) definitions of numerator/denominator terms, (4) a short worked example using the formula.\n"
-        f"- You may include inline LaTeX for formulas using $...$ (e.g., {latex_example}).\n"
+    
+    # Build the prompt in parts to avoid f-string backslash issues
+    user_prompt_parts = [
+        f"Topic hint: {topic or '(auto)'}\n",
+        f"Content:\n---\n{context[:8000]}\n---\n",
+        f"Create {n} cards. {typeline}\n",
+        f"{mix_hint}",
+        f"{type_hint}",
+        "Rules:\n",
+        "- Each card must test a concept from the content (definitions, key formulas, assumptions, implications, examples).\n",
+        "- Forbidden: questions about document structure (pages, lines, fonts, numerals) or generic number trivia.\n",
+        f"{len_hint or '- Front ≤ 18 words; Back ≤ 60 words.\n'}",
+        "- Tags: 1–3 short tags (e.g., bayes, posterior, likelihood).\n",
+        "- For cloze, use Anki syntax {{c1::...}} in the FRONT; BACK is a short elaboration.\n",
+        "- If formulas are present (e.g., P(A|B), Bayes, sums/products, fractions), include formula-focused cards.\n",
+        "  Prioritize: (1) the exact Bayes' theorem formula, (2) the multi-category version with a denominator sum, \n",
+        "  (3) definitions of numerator/denominator terms, (4) a short worked example using the formula.\n",
+        f"- You may include inline LaTeX for formulas using $...$ (e.g., {latex_example}).\n",
         "- Output only JSON. No extra text, no markdown, no additional keys."
-    )
+    ]
+    
+    user_prompt = "".join(user_prompt_parts)
     resp = llm.invoke([
         {"role": "system", "content": SYS_PROMPT},
         {"role": "user", "content": user_prompt},
