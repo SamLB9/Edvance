@@ -40,7 +40,7 @@ Thumbs.db
 generated_summaries/*
 !generated_summaries/16.png
 
-data/notes/
+data/notes/*
 !data/notes/BayesTheorem.pdf
 
 # Vector store (can be regenerated)

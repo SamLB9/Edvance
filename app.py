@@ -10,6 +10,7 @@ from src.retriever import build_or_load_vectorstore, retrieve_context
 from src.quiz_engine import generate_quiz
 from src.evaluation import grade_answer
 from src.memory import JsonMemory
+from src.flashcards_engine import generate_flashcards, to_tsv, to_csv_quizlet, to_markdown
 
 NOTES_DIR = Path("data/notes")
 PROGRESS_PATH = Path("progress.json")
@@ -59,9 +60,12 @@ def _render_brand_header() -> None:
         logo_img_tag = ""
     st.markdown(
         f"""
-        <div style="display:flex; align-items:center; gap:16px; padding:8px 0;">
-          {logo_img_tag}
-          <h1 style="margin:0;">Edvance Study Coach</h1>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:6px;">
+          <div style="display:flex; align-items:center; gap:16px;">
+            {logo_img_tag}
+            <h1 style="margin:0;">Edvance Study Coach</h1>
+          </div>
+          <div style="font-size:16px; font-weight:600; color:#bbb;">Anticipated Access</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -112,32 +116,78 @@ def ensure_quiz_state_initialized() -> None:
         "avoid_mode": "all",
         "feedback_mode": "immediate",
         "difficulty": None,
+        "quiz_n": 4,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
-def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str) -> None:
+    # Debug log buffer for quiz flow
+    if "quiz_debug_log" not in st.session_state:
+        st.session_state["quiz_debug_log"] = []
+
+def _quiz_debug(message: str) -> None:
+    ts = time.strftime('%H:%M:%S')
+    line = f"[{ts}] {message}"
+    try:
+        print(f"[QUIZ DEBUG] {line}")
+    except Exception:
+        pass
+    try:
+        # keep last 200 lines
+        buf = st.session_state.get("quiz_debug_log", [])
+        buf.append(line)
+        st.session_state["quiz_debug_log"] = buf[-200:]
+    except Exception:
+        pass
+
+def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str, question_mix_counts: dict | None = None, reference_file: str | None = None) -> None:
     ensure_vectorstore_loaded()
     memory = JsonMemory(str(PROGRESS_PATH))
 
-    # Retrieve context
-    ctx = retrieve_context(st.session_state.vs, topic, k=6)
+    # Retrieve context (filter to selected reference file if provided)
+    _quiz_debug(f"start_quiz: n={n}, avoid_mode={avoid_mode}, feedback_mode={feedback_mode}")
+    _quiz_debug(f"start_quiz: reference_file={(reference_file or 'None')}")
+    ctx = retrieve_context(st.session_state.vs, topic, k=8, source_path=reference_file)
+    _quiz_debug(f"start_quiz: retrieved context length={len(ctx)} chars")
+    # If no topic provided, infer pseudo-topic from context
+    _topic = topic.strip()
+    if not _topic:
+        try:
+            from src.auto_topic import one_liner_from_context
+            _topic = one_liner_from_context(ctx)
+            _quiz_debug(f'start_quiz: inferred pseudo-topic="{_topic}"')
+        except Exception:
+            _topic = "Key concepts and results"
+            _quiz_debug("start_quiz: pseudo-topic inference failed; using fallback topic")
+    topic = _topic
     if not ctx.strip():
         st.warning("No relevant context retrieved. Try uploading notes and rebuilding.")
+        _quiz_debug("start_quiz: empty context; aborting")
         return
 
     # Exclusions & difficulty
     excluded = memory.get_excluded_prompts(mode=avoid_mode, topic=topic)
+    _quiz_debug(f"start_quiz: excluded_prompts_count={len(excluded) if excluded else 0}")
     # Prefer user-chosen difficulty if provided, else adapt from history
     chosen = st.session_state.get("difficulty")
     difficulty = chosen if chosen in {"easy", "medium", "hard"} else memory.get_adaptive_difficulty(topic)
+    _quiz_debug(f"start_quiz: chosen_difficulty={difficulty}")
 
     # Generate quiz
-    quiz = generate_quiz(ctx, topic, n_questions=n, excluded_prompts=excluded, difficulty=difficulty)
+    quiz = generate_quiz(
+        ctx,
+        topic,
+        n_questions=n,
+        excluded_prompts=excluded,
+        difficulty=difficulty,
+        question_mix_counts=question_mix_counts,
+    )
+    _quiz_debug(f"start_quiz: quiz generation returned type={type(quiz).__name__}")
     questions = quiz.get("questions", []) if isinstance(quiz, dict) else []
     if not questions:
         st.warning("Quiz generation returned no questions. Try refining the topic or rebuilding the vector store.")
+        _quiz_debug("start_quiz: no questions returned")
         return
 
     # Initialize quiz state
@@ -163,20 +213,63 @@ def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str) -> None:
 def render_question(i: int, q: Dict[str, Any]) -> str:
     st.write(f"Q{i+1}. {q['prompt']}")
     answer = st.session_state.answers[i]
-    # Disable inputs if busy or feedback already exists for this question
     disabled = st.session_state.busy or (st.session_state.feedbacks[i] is not None)
-    if q.get("type") == "mcq":
+    qtype = q.get("type")
+
+    if qtype in ("mcq_single", "mcq"):  # legacy 'mcq' treated as single
         options = q.get("options", [])
         placeholder = "— Select an option —"
         choices = [placeholder] + options
-        if answer in options:
-            idx = choices.index(answer)
-        else:
-            idx = 0
-        selected = st.radio("Choose an option:", choices, index=idx, key=f"mcq_{i}", disabled=disabled)
+        idx = choices.index(answer) if answer in options else 0
+        selected = st.radio("Choose an option:", choices, index=idx, key=f"mcq_single_{i}", disabled=disabled)
         return "" if selected == placeholder else selected
-    else:
-        return st.text_area("Your answer:", value=answer, key=f"short_{i}", height=100, disabled=disabled)
+
+    if qtype == "mcq_multi":
+        options = q.get("options", [])
+        preselected = [opt for opt in options if opt in (answer.split("; ") if isinstance(answer, str) else [])]
+        selected = st.multiselect("Select all that apply:", options, default=preselected, key=f"mcq_multi_{i}", disabled=disabled)
+        return "; ".join(selected)
+
+    if qtype == "tf":
+        choices = ["True", "False"]
+        idx = choices.index(answer) if answer in choices else 0
+        selected = st.radio("Pick one:", choices, index=idx, key=f"tf_{i}", disabled=disabled)
+        return selected
+
+    if qtype == "tf_justify":
+        choices = ["True", "False"]
+        base = answer.split(" — ")[0] if isinstance(answer, str) and " — " in answer else (answer if answer in choices else "True")
+        idx = choices.index(base) if base in choices else 0
+        selected = st.radio("Pick one:", choices, index=idx, key=f"tfj_{i}", disabled=disabled)
+        just = st.text_area("Brief justification:", value=(answer.split(" — ")[-1] if " — " in str(answer) else ""), key=f"tfjjust_{i}", height=80, disabled=disabled)
+        return f"{selected} — {just.strip()}" if just.strip() else selected
+
+    if qtype in ("short", "explain"):
+        return st.text_area("Your answer:", value=answer, key=f"short_{i}", height=120, disabled=disabled)
+
+    if qtype == "numeric":
+        return st.text_input("Enter a number (you may include units):", value=answer, key=f"num_{i}", disabled=disabled)
+
+    if qtype == "matching":
+        left = q.get("left", [])
+        right = q.get("right", [])
+        st.caption("Match each left item to one right choice.")
+        selections: List[str] = []
+        for idx_l, left_item in enumerate(left):
+            sel = st.selectbox(f"{left_item}", options=["—"] + right, key=f"match_{i}_{idx_l}", disabled=disabled)
+            if sel and sel != "—":
+                selections.append(f"{left_item} -> {sel}")
+        return "; ".join(selections)
+
+    if qtype == "ordering":
+        items = q.get("items", [])
+        st.caption("Provide the order as comma-separated indices (e.g., 2,1,3).")
+        for idx_o, it in enumerate(items, start=1):
+            st.write(f"{idx_o}. {it}")
+        return st.text_input("Order:", value=answer, key=f"ord_{i}", disabled=disabled)
+
+    # Fallback
+    return st.text_area("Your answer:", value=answer, key=f"generic_{i}", height=100, disabled=disabled)
 
 
 def render_feedback(i: int, q: Dict[str, Any], result: Dict[str, Any], took_ms: int) -> None:
@@ -186,9 +279,9 @@ def render_feedback(i: int, q: Dict[str, Any], result: Dict[str, Any], took_ms: 
     st.markdown(f"**{status}**  •  {took_ms} ms")
     if feedback:
         st.write(feedback)
-    # Show correct option/answer for MCQ
-    if q.get("type") == "mcq":
-        st.caption(f"Correct answer: {q.get('answer','')}")
+    # Show reference answer for objective types
+    if q.get("type") in {"mcq_single", "mcq_multi", "mcq", "tf", "tf_justify", "numeric", "matching", "ordering"}:
+        st.caption(f"Reference answer: {q.get('answer','')}")
 
 
 def grade_and_log(i: int, q: Dict[str, Any], student_answer: str, took_ms: int) -> Dict[str, Any]:
@@ -259,9 +352,19 @@ def quiz_tab():
     # Mirror widget value into persistent key every rerun (allowed: different key than widget)
     st.session_state["quiz_topic"] = st.session_state.get("quiz_topic_input", _persisted_topic)
     topic = st.session_state["quiz_topic"]
+    MAX_Q = 20
     cols = st.columns(4)
     with cols[0]:
-        n = st.number_input("Number of questions", min_value=1, max_value=10, value=4, step=1, disabled=quiz_started)
+        n = st.number_input(
+            "Number of questions",
+            min_value=1,
+            max_value=MAX_Q,
+            value=st.session_state.get("quiz_n", 4),
+            step=1,
+            disabled=quiz_started,
+        )
+        # Persist chosen total
+        st.session_state["quiz_n"] = int(n)
     with cols[1]:
         difficulty = st.selectbox(
             "Difficulty",
@@ -276,6 +379,42 @@ def quiz_tab():
     with cols[3]:
         feedback_mode = st.selectbox("Feedback mode", options=["immediate", "end"], index=0, disabled=quiz_started)
 
+    # Question mix configuration (counts per type)
+    with st.expander("⚙️ Question mix (choose counts per type)", expanded=False):
+        mix_cols = st.columns(3)
+        with mix_cols[0]:
+            mcq_single = st.slider("MCQ (single correct)", 0, MAX_Q, value=st.session_state.get("mix_mcq_single", min(max(1, int(n)//2), MAX_Q)), key="mix_mcq_single", disabled=quiz_started)
+            mcq_multi = st.slider("MCQ (multiple correct)", 0, MAX_Q, value=st.session_state.get("mix_mcq_multi", 0), key="mix_mcq_multi", disabled=quiz_started)
+            tf_plain = st.slider("True/False", 0, MAX_Q, value=st.session_state.get("mix_true_false", 0), key="mix_true_false", disabled=quiz_started)
+        with mix_cols[1]:
+            tf_justify = st.slider("True/False + justification", 0, MAX_Q, value=st.session_state.get("mix_true_false_justify", 0), key="mix_true_false_justify", disabled=quiz_started)
+            short_default = max(1, int(n) - st.session_state.get("mix_mcq_single", 0))
+            short_ans = st.slider("Short answer", 0, MAX_Q, value=st.session_state.get("mix_short", short_default), key="mix_short", disabled=quiz_started)
+            matching = st.slider("Matching", 0, MAX_Q, value=st.session_state.get("mix_matching", 0), key="mix_matching", disabled=quiz_started)
+        with mix_cols[2]:
+            ordering = st.slider("Ordering/Sequencing", 0, MAX_Q, value=st.session_state.get("mix_ordering", 0), key="mix_ordering", disabled=quiz_started)
+            numeric = st.slider("Numeric calculation", 0, MAX_Q, value=st.session_state.get("mix_numeric", 0), key="mix_numeric", disabled=quiz_started)
+            explain = st.slider("Explain why (conceptual)", 0, MAX_Q, value=st.session_state.get("mix_explain", 0), key="mix_explain", disabled=quiz_started)
+
+        selected_total = sum([
+            st.session_state.get("mix_mcq_single", 0),
+            st.session_state.get("mix_mcq_multi", 0),
+            st.session_state.get("mix_true_false", 0),
+            st.session_state.get("mix_true_false_justify", 0),
+            st.session_state.get("mix_short", 0),
+            st.session_state.get("mix_matching", 0),
+            st.session_state.get("mix_ordering", 0),
+            st.session_state.get("mix_numeric", 0),
+            st.session_state.get("mix_explain", 0),
+        ])
+        st.caption(f"Selected total: {selected_total} / {int(n)} (counts will be normalized to match total)")
+        # Auto-update the total number if user adjusts the mix
+        if not quiz_started and selected_total != int(n):
+            new_total = max(1, min(MAX_Q, selected_total))
+            st.session_state["quiz_n"] = int(new_total)
+            # Force immediate UI sync
+            st.rerun()
+
     if not quiz_started:
         # Do not require Topic text to start
         start_disabled = st.session_state.get("busy", False)
@@ -284,12 +423,44 @@ def quiz_tab():
             if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
                 # Two-phase start: set flags then rerun so Stop & Reset appears immediately
                 st.session_state["quiz_generating"] = True
+                # Snapshot current mix and normalize counts to N
+                raw_mix = {
+                    "mcq_single": int(st.session_state.get("mix_mcq_single", 0)),
+                    "mcq_multi": int(st.session_state.get("mix_mcq_multi", 0)),
+                    "true_false": int(st.session_state.get("mix_true_false", 0)),
+                    "true_false_justify": int(st.session_state.get("mix_true_false_justify", 0)),
+                    "short": int(st.session_state.get("mix_short", 0)),
+                    "matching": int(st.session_state.get("mix_matching", 0)),
+                    "ordering": int(st.session_state.get("mix_ordering", 0)),
+                    "numeric": int(st.session_state.get("mix_numeric", 0)),
+                    "explain": int(st.session_state.get("mix_explain", 0)),
+                }
+                total_req = sum(raw_mix.values())
+                target_n = int(n)
+                if total_req <= 0:
+                    # Default to all MCQ single if nothing selected
+                    norm_counts = {k: 0 for k in raw_mix}
+                    norm_counts["mcq_single"] = target_n
+                else:
+                    # Largest Remainder method for fair rounding
+                    proportions = {k: (v / total_req) * target_n for k, v in raw_mix.items()}
+                    base_counts = {k: int(proportions[k]) for k in proportions}
+                    remainder = target_n - sum(base_counts.values())
+                    remainders = sorted(((proportions[k] - base_counts[k], k) for k in proportions), reverse=True)
+                    norm_counts = dict(base_counts)
+                    for _ in range(max(0, remainder)):
+                        if not remainders:
+                            break
+                        _, key_to_inc = remainders.pop(0)
+                        norm_counts[key_to_inc] = norm_counts.get(key_to_inc, 0) + 1
                 st.session_state["quiz_pending_start"] = {
-                    "n": int(n),
+                    "n": int(target_n),
                     "avoid_mode": avoid_mode,
                     "feedback_mode": feedback_mode,
                     "topic": st.session_state.get("quiz_topic", "").strip(),
                     "difficulty": (None if st.session_state.get("quiz_diff") == "auto" else st.session_state.get("quiz_diff")),
+                    "question_mix_raw": raw_mix,
+                    "question_mix_counts": norm_counts,
                 }
                 st.rerun()
         with cols_btn[1]:
@@ -304,19 +475,13 @@ def quiz_tab():
                     st.session_state.pop(k, None)
                 st.session_state["quiz_generating"] = False
                 st.session_state.pop("quiz_pending_start", None)
-                st.rerun()
+            st.rerun()
     else:
-        # Show disabled Start, Stop, and Stop & Reset
-        cols_btn = st.columns(3)
+        # Show disabled Start and Stop & Reset only
+        cols_btn = st.columns(2)
         with cols_btn[0]:
             st.button("Start Quiz", disabled=True, key="start_quiz_disabled")
         with cols_btn[1]:
-            if st.button("Stop", disabled=st.session_state.get("busy", False), key="stop_quiz"):
-                reset_quiz_state()
-                st.info("Quiz stopped. You can modify the settings and start again.")
-                _snapshot_quiz_state()
-                st.rerun()
-        with cols_btn[2]:
             if st.button("⏹️ Stop & Reset", key="quiz_stop_reset_active"):
                 reset_quiz_state()
                 for k in ["quiz_topic", "quiz_reference_file", "quiz_diff", "quiz_snapshot"]:
@@ -325,15 +490,40 @@ def quiz_tab():
                 st.session_state.pop("quiz_pending_start", None)
                 st.rerun()
 
+    # Debug output (optional, non-blocking) — disabled by default; set to True to re-enable
+    if False and st.session_state.get("quiz_debug_log"):
+        with st.expander("🔧 Debug (Quiz)", expanded=False):
+            st.code("\n".join(st.session_state["quiz_debug_log"][-80:]))
+
     # Handle pending quiz start after we have rendered buttons (so Stop & Reset is visible immediately)
     pending = st.session_state.get("quiz_pending_start")
     if pending:
         st.session_state.busy = True
         with st.spinner("Preparing quiz..."):
+            _quiz_debug("pending_start: detected; initializing")
             reset_quiz_state()
             # Store difficulty for engine
             st.session_state["difficulty"] = pending.get("difficulty")
-            start_quiz(pending.get("topic", ""), pending.get("n", 4), pending.get("avoid_mode", "all"), pending.get("feedback_mode", "immediate"))
+            _quiz_debug(f"pending_start: settings n={pending.get('n')}, avoid={pending.get('avoid_mode')}, feedback={pending.get('feedback_mode')}")
+            # Resolve absolute path of selected reference file if available
+            ref_abs = None
+            try:
+                sel_ref = st.session_state.get("quiz_reference_file")
+                if sel_ref:
+                    ref_abs = str((NOTES_DIR / sel_ref).resolve())
+            except Exception:
+                ref_abs = None
+            _quiz_debug(f"pending_start: resolved reference_file={(ref_abs or 'None')}")
+
+            start_quiz(
+                pending.get("topic", ""),
+                pending.get("n", 4),
+                pending.get("avoid_mode", "all"),
+                pending.get("feedback_mode", "immediate"),
+                question_mix_counts=pending.get("question_mix_counts"),
+                reference_file=ref_abs,
+            )
+        _quiz_debug("pending_start: completed; clearing flags and rerunning")
         st.session_state.busy = False
         st.session_state["quiz_generating"] = False
         st.session_state.pop("quiz_pending_start", None)
@@ -365,9 +555,11 @@ def quiz_tab():
             if st.button("Submit", disabled=submit_disabled, key=f"submit_{i}"):
                 st.session_state.busy = True
                 with st.spinner("Grading..."):
+                    _quiz_debug(f"grading: question_index={i}")
                     took_ms = int(round((time.perf_counter() - st.session_state.q_start) * 1000))
                     st.session_state.response_ms[i] = took_ms
                     result = grade_and_log(i, q, student_answer, took_ms)
+                    _quiz_debug(f"grading: correct={bool(result.get('correct'))}")
                     st.session_state.feedbacks[i] = result
                     if bool(result.get("correct")):
                         st.session_state.correct_count += 1
@@ -422,6 +614,7 @@ def quiz_tab():
                 if st.button("Submit All", disabled=st.session_state.busy, key=f"submit_all_{i}"):
                     st.session_state.busy = True
                     with st.spinner("Grading all answers..."):
+                        _quiz_debug("grading_all: start")
                         # Record time for last question
                         took_ms = int(round((time.perf_counter() - st.session_state.q_start) * 1000))
                         st.session_state.response_ms[i] = took_ms
@@ -431,6 +624,7 @@ def quiz_tab():
                             st.session_state.feedbacks[j] = res
                             if bool(res.get("correct")):
                                 st.session_state.correct_count += 1
+                        _quiz_debug("grading_all: done")
                     st.session_state.busy = False
                     finish_quiz()
                     st.rerun()
@@ -583,7 +777,7 @@ def summary_tab():
     Generate beautiful, publication-quality PDF summaries of your course notes using advanced LaTeX formatting.
     Each summary includes your business branding and professional styling.
     """)
-
+    
     # Actions row will be shown next to Generate button (added below)
     
     # Check if vector store is loaded
@@ -750,7 +944,7 @@ def summary_tab():
             st.metric("📄 Source Document", persisted.get("pdf_name", ""))
         with col3:
             st.metric("📏 Summary Length", f"{persisted.get('summary_length', 0)} chars")
-
+                    
         st.markdown("### 📚 PDF Preview")
         # Fixed viewer height as requested
         viewer_height = 1200
@@ -771,19 +965,22 @@ def summary_tab():
 
         if pdf_b64:
             pdf_display = f"""
-            <iframe src=\"data:application/pdf;base64,{pdf_b64}\" 
-                    width=\"100%\" 
-                    height=\"{viewer_height}px\" 
-                    style=\"border: 2px solid #e0e0e0; border-radius: 8px;\">
-            </iframe>
-            """
+                <iframe src=\"data:application/pdf;base64,{pdf_b64}\" 
+                width=\"100%\" 
+                height=\"{viewer_height}px\" 
+                style=\"border: 2px solid #e0e0e0; border-radius: 8px;\">
+                </iframe>"""
             st.markdown(pdf_display, unsafe_allow_html=True)
-
+                            
             st.markdown("### 💾 Download & Save Options")
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
                 if st.session_state.get("last_pdf_bytes"):
-                    save_clicked = st.button("💾 Save PDF to Session", help="Keep this PDF accessible in the current session")
+                    save_clicked = st.button(
+                        "💾 Save PDF to Session",
+                        help="Keep this PDF accessible in the current session",
+                        use_container_width=True,
+                    )
                     if save_clicked:
                         # Save PDF to session state for persistent access (prevent duplicates by filename)
                         st.session_state["saved_pdfs"] = st.session_state.get("saved_pdfs", [])
@@ -808,7 +1005,7 @@ def summary_tab():
                             st.session_state["saved_pdfs"].append(pdf_info)
                             st.success(f"✅ PDF saved! ({len(st.session_state['saved_pdfs'])} PDFs in session)")
                             st.rerun()
-                    
+
             with col2:
                 if st.session_state.get("last_pdf_bytes"):
                     st.download_button(
@@ -816,7 +1013,8 @@ def summary_tab():
                         data=st.session_state["last_pdf_bytes"],
                         file_name=st.session_state.get("last_pdf_filename", "summary.pdf"),
                         mime="application/pdf",
-                        help="Download the professional LaTeX-generated PDF"
+                        help="Download the professional LaTeX-generated PDF",
+                        use_container_width=True,
                     )
             with col3:
                 summary_text = f"# Course Notes Summary\n\n**Focus Area:** {persisted.get('focus','')}\n**Source:** {persisted.get('pdf_name','')}\n\n{persisted.get('summary','')}"
@@ -825,7 +1023,8 @@ def summary_tab():
                     data=summary_text,
                     file_name=f"summary_{persisted.get('focus','').replace(' ', '_')}.md",
                     mime="text/markdown",
-                    help="Download as Markdown text (backup option)"
+                    help="Download as Markdown text (backup option)",
+                    use_container_width=True,
                 )
         else:
             st.warning("PDF preview unavailable. Try regenerating the summary.")
@@ -872,6 +1071,420 @@ def summary_tab():
     
     
     # Debug & Troubleshooting removed per request
+def flashcards_tab():
+    st.subheader("Flash Card Generator")
+    # Initialize session containers
+    if "fc_deck_meta" not in st.session_state:
+        st.session_state["fc_deck_meta"] = {"name": "", "subject": "", "default_tags": []}
+    if "fc_options" not in st.session_state:
+        st.session_state["fc_options"] = {
+            "auto_mix": True,
+            "counts": {"total": 12},
+            "types": {"basic": 8, "cloze": 4},
+            "content_mix": {"formula": 4, "definition": 4, "example": 2, "interpretation": 2},
+            "difficulty": "medium",
+            "front_style": "question",
+            "back_style": "sentence",
+            "back_bullets_max": 3,
+            "cloze": {"allow": True, "max_clozes_per_card": 1, "scope": "formula"},
+            "math": {"render_latex": True, "prefer_formula_cards": True, "min_formula_cards": 2},
+            "tagging": {"auto": True, "mandatory": [], "max_per_card": 5},
+            "diversity": {"ensure_terms": [], "per_term_min": 0, "dedupe_fronts": True},
+            "quality": {"grammar_pass": False, "regen_weak": False},
+            "lengths": {"front": "medium", "back": "medium"},
+            "retries_max": 2,
+        }
+
+    # Ensure vector store is available
+    ensure_vectorstore_loaded()
+    notes = list_notes()
+    if not notes:
+        st.warning("No notes found. Upload a PDF first.")
+        return
+    files = [n["file"] for n in notes]
+    try:
+        default_idx = files.index(st.session_state.get("fc_ref", files[0]))
+    except Exception:
+        default_idx = 0
+    ref = st.selectbox("PDF/Notes", files, index=default_idx, key="fc_ref")
+    topic = st.text_input("Topic (optional)", key="fc_topic")
+    # Deck name (moved out of overlay)
+    st.session_state["fc_deck_meta"]["name"] = st.text_input(
+        "Deck name (optional)",
+        value=st.session_state["fc_deck_meta"].get("name", ""),
+        help="Leave blank to auto‑name on save from the PDF context",
+    )
+
+    n_cards = st.number_input("Number of cards", 1, 50, st.session_state["fc_options"]["counts"]["total"], 1)
+    st.session_state["fc_options"]["counts"]["total"] = int(n_cards)
+
+    # Simplified mix: proportions only
+    with st.expander("⚙️ Flashcard Options", expanded=False):
+        st.session_state["fc_options"]["auto_mix"] = st.checkbox(
+            "Auto determine the balance of card types from PDF/topic (recommended)",
+            value=st.session_state["fc_options"].get("auto_mix", True),
+            help="If enabled, the generator infers the right balance (e.g., more formula cards for formula-heavy PDFs).",
+        )
+        auto_mix = st.session_state["fc_options"]["auto_mix"]
+        cm = st.session_state["fc_options"]["content_mix"]
+        if auto_mix:
+            st.info("Mix will be inferred automatically. Disable to set manual proportions.")
+        cols_prop = st.columns(4)
+        with cols_prop[0]:
+            cm["formula"] = st.slider("Formula %", 0, 100, int(cm.get("formula", 25)), disabled=auto_mix)
+        with cols_prop[1]:
+            cm["definition"] = st.slider("Definition %", 0, 100, int(cm.get("definition", 25)), disabled=auto_mix)
+        with cols_prop[2]:
+            cm["example"] = st.slider("Example %", 0, 100, int(cm.get("example", 25)), disabled=auto_mix)
+        with cols_prop[3]:
+            cm["interpretation"] = st.slider("Interpretation %", 0, 100, int(cm.get("interpretation", 25)), disabled=auto_mix)
+        total_pct = int(cm["formula"]) + int(cm["definition"]) + int(cm["example"]) + int(cm["interpretation"])
+        if not auto_mix:
+            if total_pct != 100:
+                st.caption(f"Selected total: {total_pct}% (will be normalized to 100% on generation)")
+            else:
+                st.caption("Total: 100%")
+
+        # Allowed card types as checkboxes
+        st.markdown("**Card types**")
+        type_options = ["term_def", "qa", "mcq", "tf", "cloze"]
+        current_types = set(st.session_state["fc_options"].get("card_types", ["term_def","qa"]))
+        cols_types = st.columns(5)
+        chosen: list[str] = []
+        for idx, t in enumerate(type_options):
+            label = {
+                "term_def": "Term/Definition",
+                "qa": "Question → Answer",
+                "mcq": "Multiple Choice (MCQ)",
+                "tf": "True / False",
+                "cloze": "Cloze (fill‑in‑the‑blank)",
+            }[t]
+            help_txt = {
+                "term_def": "Front shows a term; back gives a concise definition.",
+                "qa": "Standard question on front with a short, precise answer on back.",
+                "mcq": "Question with options (A–D). Back includes the correct option.",
+                "tf": "Statement to judge as True/False. Back may include a one‑line justification.",
+                "cloze": "Fill‑in‑the‑blank using Anki cloze syntax {{c1::...}} (great for Anki).",
+            }[t]
+            with cols_types[idx]:
+                if st.checkbox(label, value=(t in current_types), key=f"fc_ct_{t}", help=help_txt):
+                    chosen.append(t)
+        if not chosen:
+            # Ensure at least one type is allowed
+            chosen = ["term_def","qa"]
+        st.session_state["fc_options"]["card_types"] = chosen
+
+        # Length preferences
+        st.markdown("**Card formatting**")
+        len_cols = st.columns(2)
+        with len_cols[0]:
+            st.session_state["fc_options"]["lengths"]["front"] = st.selectbox(
+                "Front length",
+                ["Short", "Medium", "Long"],
+                index=["Short","Medium","Long"].index(st.session_state["fc_options"]["lengths"].get("front", "medium").capitalize()),
+            ).lower()
+        with len_cols[1]:
+            st.session_state["fc_options"]["lengths"]["back"] = st.selectbox(
+                "Back length",
+                ["Short", "Medium", "Long"],
+                index=["Short","Medium","Long"].index(st.session_state["fc_options"]["lengths"].get("back", "medium").capitalize()),
+            ).lower()
+
+        # Back style (moved here from Advanced)
+        st.session_state["fc_options"]["back_style"] = st.selectbox(
+            "Back style",
+            ["sentence", "bullets"],
+            index=["sentence", "bullets"].index(st.session_state["fc_options"]["back_style"]),
+            help="Choose how answers are formatted by default.",
+        )
+        if st.session_state["fc_options"]["back_style"] == "bullets":
+            st.session_state["fc_options"]["back_bullets_max"] = st.slider(
+                "Max bullets",
+                1,
+                5,
+                st.session_state["fc_options"]["back_bullets_max"],
+            )
+
+        # Tagging controls (moved here)
+        st.markdown("**Tagging**")
+        tg = st.session_state["fc_options"]["tagging"]
+        tg["auto"] = st.checkbox(
+            "Auto‑tag from keywords",
+            value=tg.get("auto", True),
+            help="Automatically add tags based on frequent/key terms in the PDF.",
+        )
+        use_mand = st.checkbox(
+            "Use mandatory tags",
+            value=bool(tg.get("mandatory")),
+            help="Always include these tags on every card.",
+        )
+        mand_str = ", ".join(tg.get("mandatory", [])) if use_mand else ""
+        mand_edit = st.text_input(
+            "Mandatory tags (comma‑separated)",
+            value=mand_str,
+            disabled=not use_mand,
+        )
+        tg["mandatory"] = ([t.strip() for t in mand_edit.split(",") if t.strip()] if use_mand else [])
+
+    # Advanced options removed per request
+
+    # Helper: reset current (unsaved) deck only
+    def _fc_reset_current_deck():
+        st.session_state.pop("fc_cards", None)
+        st.session_state.pop("fc_pending", None)
+        st.session_state.pop("fc_pseudo_topic", None)
+        # Reset editable deck meta but keep saved decks and options
+        st.session_state["fc_deck_meta"] = {"name": "", "subject": "", "default_tags": []}
+        # Clear any per-card edit toggles
+        for _k in list(st.session_state.keys()):
+            if isinstance(_k, str) and _k.startswith("fc_edit_"):
+                st.session_state.pop(_k, None)
+
+    # Actions row: Generate and Stop & Reset (does not affect saved decks)
+    fc_actions = st.columns(2)
+    with fc_actions[0]:
+        if st.button("Generate Cards"):
+            # Two-phase flow so the spinner appears immediately on the next run
+            st.session_state["fc_pending"] = {
+                "ref": ref,
+                "topic": topic.strip(),
+                "n": int(n_cards),
+                "options": st.session_state.get("fc_options", {}),
+            }
+            st.rerun()
+    with fc_actions[1]:
+        can_reset_fc = bool(st.session_state.get("fc_pending") or st.session_state.get("fc_cards"))
+        if st.button("⏹️ Stop & Reset", disabled=not can_reset_fc, key="fc_stop_reset"):
+            _fc_reset_current_deck()
+            st.rerun()
+
+    # Handle pending generation so spinner appears right away
+    pending_fc = st.session_state.get("fc_pending")
+    if pending_fc:
+        with st.spinner("Generating cards..."):
+            try:
+                ref_name = pending_fc.get("ref") or st.session_state.get("fc_ref")
+                ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
+                ctx = retrieve_context(st.session_state.vs, pending_fc.get("topic", ""), k=10, source_path=ref_abs)
+            except Exception as e:
+                st.warning(f"Could not retrieve content: {e}")
+                st.session_state.pop("fc_pending", None)
+                return
+            if not ctx.strip():
+                st.warning("No relevant content found in the selected PDF.")
+                st.session_state.pop("fc_pending", None)
+                return
+            pseudo = pending_fc.get("topic", "").strip()
+            if not pseudo:
+                try:
+                    from src.auto_topic import one_liner_from_context
+                    pseudo = one_liner_from_context(ctx)
+                except Exception:
+                    pseudo = "Key concepts"
+            opts = pending_fc.get("options", {})
+            allow_cloze_flag = ("cloze" in (opts.get("card_types", ["term_def","qa","cloze"])) )
+            out = generate_flashcards(
+                ctx,
+                pseudo,
+                n=int(pending_fc.get("n", 12)),
+                allow_cloze=allow_cloze_flag,
+                options=opts,
+            )
+            cards = out.get("cards", [])
+            if not cards:
+                st.warning("No cards generated. Try adjusting topic or content.")
+                st.session_state.pop("fc_pending", None)
+                return
+            st.session_state["fc_cards"] = cards
+            st.session_state["fc_pseudo_topic"] = pseudo
+        st.session_state.pop("fc_pending", None)
+        st.rerun()
+
+    cards = st.session_state.get("fc_cards", [])
+    if cards:
+        st.markdown("### ✏️ Your Flash Cards")
+        # Helper to save deck with optional auto-generated name when empty
+        def _fc_save_current_deck():
+            deck_name = (st.session_state.get("fc_deck_meta", {}).get("name", "").strip())
+            if not deck_name:
+                try:
+                    ref_name = st.session_state.get("fc_ref")
+                    ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
+                    topic_hint = (st.session_state.get("fc_topic", "").strip() or st.session_state.get("fc_pseudo_topic", "").strip())
+                    ctx = retrieve_context(st.session_state.vs, topic_hint, k=5, source_path=ref_abs)
+                    try:
+                        from src.auto_topic import one_liner_from_context
+                        auto_name = one_liner_from_context(ctx).strip()
+                    except Exception:
+                        auto_name = "Study Deck"
+                    deck_name = auto_name or "Study Deck"
+                except Exception:
+                    deck_name = "Study Deck"
+                st.session_state["fc_deck_meta"]["name"] = deck_name
+            deck_info = {
+                "name": deck_name,
+                "subject": st.session_state.get("fc_deck_meta", {}).get("subject", ""),
+                "default_tags": st.session_state.get("fc_deck_meta", {}).get("default_tags", []),
+                "cards": st.session_state.get("fc_cards", []),
+                "options": st.session_state.get("fc_options", {}),
+            }
+            st.session_state.setdefault("saved_decks", []).append(deck_info)
+            try:
+                st.toast(f"Deck saved as '{deck_info['name']}'", icon="✅")
+            except Exception:
+                st.success(f"Deck saved as '{deck_info['name']}'")
+
+        # Top Save Deck button (simple save)
+        top_actions = st.columns([1, 6])
+        with top_actions[0]:
+            if st.button("💾 Save Deck", key="fc_save_deck_top"):
+                _fc_save_current_deck()
+        # Render cards with inline edit mode
+        allowed_types = st.session_state.get("fc_options", {}).get("card_types", ["term_def","qa"]) or ["term_def","qa"]
+        type_labels = {
+            "term_def": "Term/Definition",
+            "qa": "Question → Answer",
+            "mcq": "Multiple Choice (MCQ)",
+            "tf": "True / False",
+            "cloze": "Cloze (fill‑in‑the‑blank)",
+        }
+        for i, c in enumerate(cards):
+            with st.container(border=True):
+                # Track edit mode per card
+                edit_key = f"fc_edit_{i}"
+                if edit_key not in st.session_state:
+                    st.session_state[edit_key] = False
+
+                hdr = st.columns([6, 1, 1])
+                with hdr[0]:
+                    st.markdown(f"**Card {i+1}** — {type_labels.get(c.get('type','qa'),'')} ")
+                with hdr[1]:
+                    if st.button("✏️ Edit" if not st.session_state[edit_key] else "✅ Done", key=f"fc_toggle_{i}"):
+                        st.session_state[edit_key] = not st.session_state[edit_key]
+                        st.rerun()
+                with hdr[2]:
+                    if st.button("🗑️ Delete", key=f"fc_del_{i}"):
+                        st.session_state["fc_cards"].pop(i)
+                        st.rerun()
+
+                if not st.session_state[edit_key]:
+                    # Read-only view
+                    st.markdown(f"**Front:** {c.get('front','')}")
+                    st.markdown(f"**Back:** {c.get('back','')}")
+                    tags_disp = ", ".join(c.get("tags", [])) or "—"
+                    st.caption(f"Tags: {tags_disp}")
+                else:
+                    # Editable view (auto-saves on Done)
+                    options = [t for t in allowed_types if t in type_labels] or ["qa"]
+                    labels = [type_labels[t] for t in options]
+                    sel_idx = options.index(c.get("type","qa")) if c.get("type","qa") in options else 0
+                    sel_label = st.selectbox("Type", labels, index=sel_idx, key=f"fc_type_{i}")
+                    c["type"] = options[labels.index(sel_label)]
+                    c["front"] = st.text_area("Front", value=c.get("front",""), key=f"fc_front_{i}", height=80)
+                    c["back"] = st.text_area("Back", value=c.get("back",""), key=f"fc_back_{i}", height=120)
+                    tags_str = ", ".join(c.get("tags", []))
+                    tags_edit = st.text_input("Tags (comma‑separated)", value=tags_str, key=f"fc_tags_{i}")
+                    c["tags"] = [t.strip() for t in tags_edit.split(",") if t.strip()]
+
+        # Bottom Save Deck button
+        bottom_actions = st.columns([1, 6])
+        with bottom_actions[0]:
+            if st.button("💾 Save Deck", key="fc_save_deck_bottom"):
+                _fc_save_current_deck()
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.download_button("⬇️ Download Anki TSV", to_tsv(cards), file_name="deck.tsv", mime="text/tab-separated-values")
+            st.caption("Import in Anki: Text (tabs) → map Front, Back, Tags. Use Cloze model if fronts have {{c1::...}}.")
+        with col2:
+            st.download_button("⬇️ Download Quizlet CSV", to_csv_quizlet(cards), file_name="deck.csv", mime="text/csv")
+        with col3:
+            st.download_button("⬇️ Download Markdown", to_markdown(cards), file_name="deck.md", mime="text/markdown")
+
+        # Modal flow removed
+
+    # Saved decks list (session-persistent) — always visible
+    saved = st.session_state.get("saved_decks", [])
+    if saved:
+        st.markdown("### 📚 Saved Decks (this session)")
+        for i, dk in enumerate(saved):
+            with st.container(border=True):
+                # Unified single row: info | format | download | load | delete
+                cols_sd = st.columns([6, 3, 2, 1, 1], gap="small")
+                with cols_sd[0]:
+                    deck_name = dk.get("name", "Untitled deck") or "Untitled deck"
+                    subject = dk.get("subject", "")
+                    num_cards = len(dk.get("cards", []))
+                    st.markdown(f"**{deck_name}**")
+                    meta_line = f"{num_cards} cards"
+                    if subject:
+                        meta_line += f" • {subject}"
+                    st.caption(meta_line)
+
+                    # Prepare export data (merge default tags with per-card tags)
+                    cards_src = dk.get("cards", [])
+                    default_tags = dk.get("default_tags", []) or []
+                    export_cards = []
+                    for c in cards_src:
+                        tags = (c.get("tags", []) or []) + list(default_tags)
+                        seen = set()
+                        merged_tags = []
+                        for t in tags:
+                            tt = t.strip()
+                            if tt and tt not in seen:
+                                seen.add(tt)
+                                merged_tags.append(tt)
+                        export_cards.append({**c, "tags": merged_tags})
+                with cols_sd[1]:
+                    fmt = st.selectbox(
+                        "Export format",
+                        ["Anki TSV", "Quizlet CSV", "Markdown"],
+                        index=0,
+                        key=f"fc_export_fmt_{i}",
+                        label_visibility="collapsed",
+                    )
+                with cols_sd[2]:
+                    if fmt == "Anki TSV":
+                        data = to_tsv(export_cards)
+                        ext = "tsv"
+                        mime = "text/tab-separated-values"
+                    elif fmt == "Quizlet CSV":
+                        data = to_csv_quizlet(export_cards)
+                        ext = "csv"
+                        mime = "text/csv"
+                    else:
+                        data = to_markdown(export_cards)
+                        ext = "md"
+                        mime = "text/markdown"
+
+                    raw_name = dk.get("name", "deck").strip() or "deck"
+                    safe_name = "".join(ch if (ch.isalnum() or ch in (" ", "-", "_")) else "_" for ch in raw_name).strip().replace(" ", "_")
+                    file_name = f"{safe_name or 'deck'}.{ext}"
+
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=data,
+                        file_name=file_name,
+                        mime=mime,
+                        key=f"fc_export_dl_{i}",
+                        help="Export this saved deck in the chosen format.",
+                        use_container_width=True,
+                    )
+                with cols_sd[3]:
+                    if st.button("Load", key=f"fc_load_{i}", use_container_width=True):
+                        st.session_state["fc_deck_meta"] = {
+                            "name": dk.get("name", ""),
+                            "subject": dk.get("subject", ""),
+                            "default_tags": dk.get("default_tags", []),
+                        }
+                        st.session_state["fc_cards"] = dk.get("cards", [])
+                        if dk.get("options"):
+                            st.session_state["fc_options"] = dk.get("options")
+                        st.rerun()
+                with cols_sd[4]:
+                    if st.button("🗑️ Delete", key=f"fc_del_deck_{i}", use_container_width=True):
+                        st.session_state["saved_decks"].pop(i)
+                        st.rerun()
 
 
 def main():
@@ -890,6 +1503,8 @@ def main():
         [data-testid="stToolbar"] { display: none !important; }
         #MainMenu { visibility: hidden; }
         footer { visibility: hidden; }
+        /* Reduce top padding before the first container to pull the header up */
+        .block-container { padding-top: 8px !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -903,16 +1518,24 @@ def main():
 
     # Persistent navigation to prevent tab reset on rerun
     default_nav = st.session_state.get("nav", "Quiz")
-    selected_nav = st.radio("", ["Upload Notes", "Quiz", "Progress", "Summary"], index=["Upload Notes", "Quiz", "Progress", "Summary"].index(default_nav), horizontal=True, key="nav")
+    selected_nav = st.radio(
+        "",
+        ["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"],
+        index=["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"].index(default_nav),
+        horizontal=True,
+        key="nav",
+    )
 
     if selected_nav == "Upload Notes":
         upload_tab()
-    elif selected_nav == "Quiz":
-        quiz_tab()
     elif selected_nav == "Progress":
         progress_tab()
-    else:
+    elif selected_nav == "Quiz":
+        quiz_tab()
+    elif selected_nav == "Summary":
         summary_tab()
+    else:
+        flashcards_tab()
 
 
 if __name__ == "__main__":

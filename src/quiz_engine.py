@@ -8,21 +8,28 @@ from .config import OPENAI_MODEL
 
 
 # ---- Types ---------------------------------------------------------------
-class MCQ(TypedDict):
-    type: Literal["mcq"]
-    prompt: str
-    options: List[str]
-    answer: str  # e.g., "A" or full text, depending on generator
-
-
-class ShortQ(TypedDict):
-    type: Literal["short"]
+class QuizQuestion(TypedDict, total=False):
+    type: Literal[
+        "mcq_single",
+        "mcq_multi",
+        "tf",
+        "tf_justify",
+        "short",
+        "matching",
+        "ordering",
+        "numeric",
+        "explain",
+    ]
     prompt: str
     answer: str
+    options: List[str]
+    left: List[str]
+    right: List[str]
+    items: List[str]
 
 
 class Quiz(TypedDict):
-    questions: List[Union[MCQ, ShortQ]]
+    questions: List[QuizQuestion]
 
 
 class GradeResult(TypedDict):
@@ -32,11 +39,29 @@ class GradeResult(TypedDict):
 
 # ---- System Prompts -----------------------------------------------------
 SYS_PROMPT = (
-    "You are a strict but helpful study coach. Generate concise, unambiguous questions.\n"
-    "Prefer 3–4 MCQs (with exactly 4 options labeled A–D) plus 1 short-answer.\n"
-    "Return STRICT JSON only, with this exact schema: {\n"
-    "  \"questions\": [ { \"type\": \"mcq\"|\"short\", \"prompt\": \"...\", \"options\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"]?, \"answer\": \"...\" } ]\n"
-    "}. No markdown, no prose outside JSON."
+    "You are a strict but helpful study coach. Generate concise, unambiguous questions that assess the SUBJECT MATTER only.\n"
+    "Absolutely forbid meta-questions about formatting, file structure, or how the context is written.\n"
+    "NEVER ask about lines, pages, headings, fonts, bullets, figure numbers, filenames, encodings, separators like '---', or JSON structure.\n"
+    "Only ask about concepts, definitions, theorems, procedures, examples, results, formulas, and interpretations contained in the content.\n"
+    "Forbidden examples: 'True or False: Each line shows the same digit', 'How many bullet points are there?', 'What is written in the first line?', 'Which page mentions ...?'.\n"
+    "Allowed examples: 'State Bayes' theorem and interpret each term', 'Which conditions are required for the law of large numbers?', 'Compute P(A|B=...) given ...', 'Explain why independence implies ...'.\n"
+    "Return STRICT JSON only with this schema: {\n"
+    "  \"questions\": [ {\n"
+    "    \"type\": one of [\"mcq_single\", \"mcq_multi\", \"tf\", \"tf_justify\", \"short\", \"matching\", \"ordering\", \"numeric\", \"explain\"],\n"
+    "    \"prompt\": string (must not mention 'context', 'text above', 'lines', 'pages', or formatting),\n"
+    "    \"answer\": string (reference answer for grading),\n"
+    "    // Additional fields by type:\n"
+    "    // mcq_single: options: [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"]\n"
+    "    // mcq_multi: options: [\"...\"], and answer MUST list correct option texts separated by '; ' (e.g., \"Option 1; Option 3\")\n"
+    "    // tf: no extras, answer is 'True' or 'False'\n"
+    "    // tf_justify: no extras, answer is 'True — <brief justification>'\n"
+    "    // short: no extras\n"
+    "    // matching: left: [labels], right: [choices]; answer should be mapping like 'A -> 2; B -> 1; C -> 3'\n"
+    "    // ordering: items: [list to order]; answer is the correct order as '1) X, 2) Y, 3) Z'\n"
+    "    // numeric: no extras; if units/tolerance matter, include them within the answer (e.g., '3.14 (±0.01), units: rad')\n"
+    "    // explain: no extras; answer lists key points expected\n"
+    "  } ]\n"
+    "}. No markdown, no commentary outside JSON."
 )
 
 
@@ -62,14 +87,26 @@ def _validate_quiz_schema(obj: Dict[str, Any]) -> Quiz:
     if not isinstance(obj, dict) or "questions" not in obj or not isinstance(obj["questions"], list):
         raise ValueError("Quiz JSON must have a 'questions' list.")
     for q in obj["questions"]:
-        if not isinstance(q, dict) or q.get("type") not in ("mcq", "short"):
-            raise ValueError("Each question must have type 'mcq' or 'short'.")
+        if not isinstance(q, dict):
+            raise ValueError("Each question must be an object.")
+        qtype = q.get("type")
+        if qtype not in {"mcq_single","mcq_multi","tf","tf_justify","short","matching","ordering","numeric","explain","mcq"}:
+            raise ValueError("Unsupported question type.")
         if "prompt" not in q or not isinstance(q["prompt"], str) or not q["prompt"].strip():
             raise ValueError("Each question must have a non-empty 'prompt'.")
-        if q["type"] == "mcq":
+        if qtype in {"mcq_single","mcq_multi","mcq"}:
             opts = q.get("options")
-            if not isinstance(opts, list) or len(opts) != 4:
-                raise ValueError("MCQ must include exactly 4 options.")
+            if not isinstance(opts, list) or len(opts) < 4:
+                raise ValueError("MCQ must include options (≥4).")
+        if qtype == "matching":
+            left = q.get("left")
+            right = q.get("right")
+            if not isinstance(left, list) or not isinstance(right, list) or not left or not right:
+                raise ValueError("Matching must include 'left' and 'right' lists.")
+        if qtype == "ordering":
+            items = q.get("items")
+            if not isinstance(items, list) or len(items) < 3:
+                raise ValueError("Ordering must include an 'items' list (≥3).")
         if "answer" not in q or not isinstance(q["answer"], str) or not q["answer"].strip():
             raise ValueError("Each question must include an 'answer'.")
     return obj  # type: ignore[return-value]
@@ -83,6 +120,7 @@ def generate_quiz(
     n_questions: int = 4,
     excluded_prompts: Optional[List[str]] = None,
     difficulty: Optional[str] = None,
+    question_mix_counts: Optional[Dict[str, int]] = None,
 ) -> Quiz:
     """Generate a quiz as a parsed JSON object (dict) with schema Quiz.
 
@@ -120,11 +158,27 @@ def generate_quiz(
             "Prefer questions that combine multiple facts/formulas, include subtle distractors (still unambiguous), and require applying concepts, not just recalling them."
         )
 
+    mix_instructions = ""
+    if question_mix_counts:
+        chosen = {k: int(v) for k, v in question_mix_counts.items() if int(v) > 0}
+        if chosen:
+            mix_lines = "\n".join(f"- {k}: {v}" for k, v in chosen.items())
+            mix_instructions = (
+                "\nQuestion type counts (strict):\n" + mix_lines + "\n"
+                "Ensure the total number of questions equals the requested count."
+            )
+
     user_prompt = (
         f"Topic: {topic}\n"
         f"Context (from course notes):\n---\n{context}\n---\n"
-        f"Create {n_questions} questions that can be answered from the context."
+        f"Create {n_questions} questions that are answerable using only the subject-matter content above."
+        f"\nRules:\n"
+        f"- Ignore formatting artifacts (line breaks, bullets, numbering, page headers/footers, file names, code fences, base64, JSON, separators like '---').\n"
+        f"- Do not write questions about the structure/format of the text; focus on concepts, results, definitions, proofs, computations, and interpretations present in the content.\n"
+        f"- Do not reference 'the context', 'the text above', 'this document', or page/line numbers in prompts.\n"
+        f"- Prefer precise, content-anchored prompts and unambiguous answers."
         f"\nChosen difficulty: {difficulty or 'auto'}"
+        f"{mix_instructions}"
         f"{avoidance_instructions}"
         f"{difficulty_instructions}"
     )

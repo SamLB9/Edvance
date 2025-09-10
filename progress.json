@@ -1,5 +1,28 @@
 {
-  "sessions": [],
+  "sessions": [
+    {
+      "timestamp": "2025-09-08T12:06:17.766372Z",
+      "topic": "Bayes Theorem",
+      "score": 10.0,
+      "details": {
+        "raw": "1/10",
+        "avoid_mode": "all",
+        "difficulty": "hard",
+        "feedback_mode": "end"
+      }
+    },
+    {
+      "timestamp": "2025-09-08T12:07:30.776300Z",
+      "topic": "Bayes Theorem",
+      "score": 20.0,
+      "details": {
+        "raw": "2/10",
+        "avoid_mode": "all",
+        "difficulty": "hard",
+        "feedback_mode": "end"
+      }
+    }
+  ],
   "attempts": [
     {
       "timestamp": "2025-09-05T15:47:47.006695Z",
@@ -36,6 +59,276 @@
       "student_answer": "B) 15%",
       "correct": false,
       "response_ms": 17615
+    },
+    {
+      "timestamp": "2025-09-07T15:06:40.144438Z",
+      "topic": "",
+      "question_id": "e3db5b15eeaaf590",
+      "prompt": "How many lines are in the context?",
+      "student_answer": "B) 6",
+      "correct": false,
+      "response_ms": 25347
+    },
+    {
+      "timestamp": "2025-09-07T15:12:39.074529Z",
+      "topic": "",
+      "question_id": "c5811b6b7370024e",
+      "prompt": "Which character appears on every line of the context?",
+      "student_answer": "C) A",
+      "correct": false,
+      "response_ms": 350307
+    },
+    {
+      "timestamp": "2025-09-07T15:12:50.495688Z",
+      "topic": "",
+      "question_id": "5835c0b097ccefc8",
+      "prompt": "How many times does the digit '7' appear in the entire context?",
+      "student_answer": "B) 6",
+      "correct": false,
+      "response_ms": 4090
+    },
+    {
+      "timestamp": "2025-09-07T15:31:54.408101Z",
+      "topic": "",
+      "question_id": "4381d8c3b4bc5827",
+      "prompt": "True or False: Each line in the context shows the same single digit.",
+      "student_answer": "True",
+      "correct": true,
+      "response_ms": 1134966
+    },
+    {
+      "timestamp": "2025-09-07T15:37:34.795156Z",
+      "topic": "",
+      "question_id": "cc61c5a035abe055",
+      "prompt": "Which of the following correctly describes the number 7?",
+      "student_answer": "B) Composite",
+      "correct": false,
+      "response_ms": 106830
+    },
+    {
+      "timestamp": "2025-09-07T15:37:57.397746Z",
+      "topic": "",
+      "question_id": "9a56bba2fc2aac32",
+      "prompt": "What is the Roman numeral representation of 7?",
+      "student_answer": "A) VII",
+      "correct": true,
+      "response_ms": 16279
+    },
+    {
+      "timestamp": "2025-09-07T15:38:16.475290Z",
+      "topic": "",
+      "question_id": "fd8bfc61f4a50495",
+      "prompt": "Which label fits 7?",
+      "student_answer": "A) Odd",
+      "correct": true,
+      "response_ms": 13170
+    },
+    {
+      "timestamp": "2025-09-07T15:38:31.140086Z",
+      "topic": "",
+      "question_id": "60c51a8e37119e7b",
+      "prompt": "Which of the following are divisors (factors) of 7?",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 8105
+    },
+    {
+      "timestamp": "2025-09-07T15:38:49.863355Z",
+      "topic": "",
+      "question_id": "306fdf611249b132",
+      "prompt": "Select all properties true for 7.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 5904
+    },
+    {
+      "timestamp": "2025-09-08T12:05:07.922126Z",
+      "topic": "Bayes Theorem",
+      "question_id": "6fc73985008010a6",
+      "prompt": "Which expression gives the generalized Bayes theorem for the posterior probability P(A_k | B) when there are multiple mutually exclusive categories A_1, A_2, ..., A_n?",
+      "student_answer": "D) P(A_k | B) = P(B | A_k) P(B) / P(A_k)",
+      "correct": false,
+      "response_ms": 24696
+    },
+    {
+      "timestamp": "2025-09-08T12:05:14.473286Z",
+      "topic": "Bayes Theorem",
+      "question_id": "285dfbc2d91e5937",
+      "prompt": "In the generalized Bayes denominator P(B) = sum_j P(B|A_j)P(A_j), what principle is being used to compute P(B)?",
+      "student_answer": "C) A simplification valid only when there are exactly two categories",
+      "correct": false,
+      "response_ms": 7708
+    },
+    {
+      "timestamp": "2025-09-08T12:05:19.615676Z",
+      "topic": "Bayes Theorem",
+      "question_id": "8d616ac571ab2428",
+      "prompt": "In a quality-control application with several production lines each having a prior production share and a defect rate, which factor most directly determines an increased posterior probability that a defective item came from a given line?",
+      "student_answer": "C) Having the largest product of prior share and defect rate relative to other lines (i.e., largest P(B|A_i)P(A_i))",
+      "correct": true,
+      "response_ms": 3571
+    },
+    {
+      "timestamp": "2025-09-08T12:05:27.749497Z",
+      "topic": "Bayes Theorem",
+      "question_id": "9b09129343f03675",
+      "prompt": "Which of the following statements correctly describe consequences or features of the generalized Bayes theorem with multiple categories? (Select all that apply.)",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 2720
+    },
+    {
+      "timestamp": "2025-09-08T12:05:35.058079Z",
+      "topic": "Bayes Theorem",
+      "question_id": "f81fdf434f650fa4",
+      "prompt": "Which conditions are required for applying the generalized Bayes formula correctly? (Select all that apply.)",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 1115
+    },
+    {
+      "timestamp": "2025-09-08T12:05:42.324828Z",
+      "topic": "Bayes Theorem",
+      "question_id": "e45e68461343e935",
+      "prompt": "Generalized Bayes theorem requires that the set of categories for event A be mutually exclusive and exhaustive.",
+      "student_answer": "False",
+      "correct": false,
+      "response_ms": 4089
+    },
+    {
+      "timestamp": "2025-09-08T12:05:51.544380Z",
+      "topic": "Bayes Theorem",
+      "question_id": "75b0265d58c0522a",
+      "prompt": "When using generalized Bayes theorem to decide which production line produced a defective item, the posterior probability for a given line depends only on that line's prior and defect rate and is unaffected by other lines' defect rates.",
+      "student_answer": "True",
+      "correct": false,
+      "response_ms": 882
+    },
+    {
+      "timestamp": "2025-09-08T12:05:58.317112Z",
+      "topic": "Bayes Theorem",
+      "question_id": "35e654ebdd6c3e8c",
+      "prompt": "Write the generalized Bayes theorem formula for P(A_k | B) using summation notation.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 2986
+    },
+    {
+      "timestamp": "2025-09-08T12:06:09.188155Z",
+      "topic": "Bayes Theorem",
+      "question_id": "8bee866f1d1fff5d",
+      "prompt": "Briefly explain how generalized Bayes theorem is applied in quality control with multiple categories (such as production lines or batches).",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 1106
+    },
+    {
+      "timestamp": "2025-09-08T12:06:17.759264Z",
+      "topic": "Bayes Theorem",
+      "question_id": "b435ddfb353f150c",
+      "prompt": "Three production lines produce 50%, 30%, and 20% of items respectively. Their defect rates are 0.02, 0.05, and 0.10 respectively. Compute the posterior probability that a randomly observed defective item came from the third line. Give the value to three decimal places.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 4333
+    },
+    {
+      "timestamp": "2025-09-08T12:06:31.989972Z",
+      "topic": "Bayes Theorem",
+      "question_id": "6fc73985008010a6",
+      "prompt": "Which expression gives the generalized Bayes theorem for the posterior probability P(A_k | B) when there are multiple mutually exclusive categories A_1, A_2, ..., A_n?",
+      "student_answer": "D) P(A_k | B) = P(B | A_k) P(B) / P(A_k)",
+      "correct": false,
+      "response_ms": 24696
+    },
+    {
+      "timestamp": "2025-09-08T12:06:38.149540Z",
+      "topic": "Bayes Theorem",
+      "question_id": "285dfbc2d91e5937",
+      "prompt": "In the generalized Bayes denominator P(B) = sum_j P(B|A_j)P(A_j), what principle is being used to compute P(B)?",
+      "student_answer": "C) A simplification valid only when there are exactly two categories",
+      "correct": false,
+      "response_ms": 7708
+    },
+    {
+      "timestamp": "2025-09-08T12:06:41.924957Z",
+      "topic": "Bayes Theorem",
+      "question_id": "8d616ac571ab2428",
+      "prompt": "In a quality-control application with several production lines each having a prior production share and a defect rate, which factor most directly determines an increased posterior probability that a defective item came from a given line?",
+      "student_answer": "C) Having the largest product of prior share and defect rate relative to other lines (i.e., largest P(B|A_i)P(A_i))",
+      "correct": true,
+      "response_ms": 3571
+    },
+    {
+      "timestamp": "2025-09-08T12:06:47.966559Z",
+      "topic": "Bayes Theorem",
+      "question_id": "9b09129343f03675",
+      "prompt": "Which of the following statements correctly describe consequences or features of the generalized Bayes theorem with multiple categories? (Select all that apply.)",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 2720
+    },
+    {
+      "timestamp": "2025-09-08T12:06:55.848851Z",
+      "topic": "Bayes Theorem",
+      "question_id": "f81fdf434f650fa4",
+      "prompt": "Which conditions are required for applying the generalized Bayes formula correctly? (Select all that apply.)",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 1115
+    },
+    {
+      "timestamp": "2025-09-08T12:07:04.560118Z",
+      "topic": "Bayes Theorem",
+      "question_id": "e45e68461343e935",
+      "prompt": "Generalized Bayes theorem requires that the set of categories for event A be mutually exclusive and exhaustive.",
+      "student_answer": "False",
+      "correct": false,
+      "response_ms": 4089
+    },
+    {
+      "timestamp": "2025-09-08T12:07:08.652149Z",
+      "topic": "Bayes Theorem",
+      "question_id": "75b0265d58c0522a",
+      "prompt": "When using generalized Bayes theorem to decide which production line produced a defective item, the posterior probability for a given line depends only on that line's prior and defect rate and is unaffected by other lines' defect rates.",
+      "student_answer": "True",
+      "correct": false,
+      "response_ms": 882
+    },
+    {
+      "timestamp": "2025-09-08T12:07:16.844771Z",
+      "topic": "Bayes Theorem",
+      "question_id": "35e654ebdd6c3e8c",
+      "prompt": "Write the generalized Bayes theorem formula for P(A_k | B) using summation notation.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 2986
+    },
+    {
+      "timestamp": "2025-09-08T12:07:23.363301Z",
+      "topic": "Bayes Theorem",
+      "question_id": "8bee866f1d1fff5d",
+      "prompt": "Briefly explain how generalized Bayes theorem is applied in quality control with multiple categories (such as production lines or batches).",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 1106
+    },
+    {
+      "timestamp": "2025-09-08T12:07:30.770733Z",
+      "topic": "Bayes Theorem",
+      "question_id": "b435ddfb353f150c",
+      "prompt": "Three production lines produce 50%, 30%, and 20% of items respectively. Their defect rates are 0.02, 0.05, and 0.10 respectively. Compute the posterior probability that a randomly observed defective item came from the third line. Give the value to three decimal places.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 91837
+    },
+    {
+      "timestamp": "2025-09-08T16:59:15.056286Z",
+      "topic": "Bayes' theorem and conditional probability: revising priors into posteriors using new information.",
+      "question_id": "4a6c51e304a80cc9",
+      "prompt": "What is the primary purpose of Bayes' theorem as described?",
+      "student_answer": "A) To compute the joint probability of two independent events only",
+      "correct": false,
+      "response_ms": 51620
     }
   ],
   "questions": {
@@ -86,6 +379,246 @@
       ],
       "last_response_ms": 17615,
       "avg_response_ms": 17615
+    },
+    "e3db5b15eeaaf590": {
+      "prompt": "How many lines are in the context?",
+      "times_asked": 1,
+      "last_answer": "B) 6",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:06:40.144438Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 25347,
+      "avg_response_ms": 25347
+    },
+    "c5811b6b7370024e": {
+      "prompt": "Which character appears on every line of the context?",
+      "times_asked": 1,
+      "last_answer": "C) A",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:12:39.074529Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 350307,
+      "avg_response_ms": 350307
+    },
+    "5835c0b097ccefc8": {
+      "prompt": "How many times does the digit '7' appear in the entire context?",
+      "times_asked": 1,
+      "last_answer": "B) 6",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:12:50.495688Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 4090,
+      "avg_response_ms": 4090
+    },
+    "4381d8c3b4bc5827": {
+      "prompt": "True or False: Each line in the context shows the same single digit.",
+      "times_asked": 1,
+      "last_answer": "True",
+      "last_correct": true,
+      "last_timestamp": "2025-09-07T15:31:54.408101Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 1134966,
+      "avg_response_ms": 1134966
+    },
+    "cc61c5a035abe055": {
+      "prompt": "Which of the following correctly describes the number 7?",
+      "times_asked": 1,
+      "last_answer": "B) Composite",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:37:34.795156Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 106830,
+      "avg_response_ms": 106830
+    },
+    "9a56bba2fc2aac32": {
+      "prompt": "What is the Roman numeral representation of 7?",
+      "times_asked": 1,
+      "last_answer": "A) VII",
+      "last_correct": true,
+      "last_timestamp": "2025-09-07T15:37:57.397746Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 16279,
+      "avg_response_ms": 16279
+    },
+    "fd8bfc61f4a50495": {
+      "prompt": "Which label fits 7?",
+      "times_asked": 1,
+      "last_answer": "A) Odd",
+      "last_correct": true,
+      "last_timestamp": "2025-09-07T15:38:16.475290Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 13170,
+      "avg_response_ms": 13170
+    },
+    "60c51a8e37119e7b": {
+      "prompt": "Which of the following are divisors (factors) of 7?",
+      "times_asked": 1,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:38:31.140086Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 8105,
+      "avg_response_ms": 8105
+    },
+    "306fdf611249b132": {
+      "prompt": "Select all properties true for 7.",
+      "times_asked": 1,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-07T15:38:49.863355Z",
+      "topics": [
+        ""
+      ],
+      "last_response_ms": 5904,
+      "avg_response_ms": 5904
+    },
+    "6fc73985008010a6": {
+      "prompt": "Which expression gives the generalized Bayes theorem for the posterior probability P(A_k | B) when there are multiple mutually exclusive categories A_1, A_2, ..., A_n?",
+      "times_asked": 2,
+      "last_answer": "D) P(A_k | B) = P(B | A_k) P(B) / P(A_k)",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:06:31.989972Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 24696,
+      "avg_response_ms": 24696
+    },
+    "285dfbc2d91e5937": {
+      "prompt": "In the generalized Bayes denominator P(B) = sum_j P(B|A_j)P(A_j), what principle is being used to compute P(B)?",
+      "times_asked": 2,
+      "last_answer": "C) A simplification valid only when there are exactly two categories",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:06:38.149540Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 7708,
+      "avg_response_ms": 7708
+    },
+    "8d616ac571ab2428": {
+      "prompt": "In a quality-control application with several production lines each having a prior production share and a defect rate, which factor most directly determines an increased posterior probability that a defective item came from a given line?",
+      "times_asked": 2,
+      "last_answer": "C) Having the largest product of prior share and defect rate relative to other lines (i.e., largest P(B|A_i)P(A_i))",
+      "last_correct": true,
+      "last_timestamp": "2025-09-08T12:06:41.924957Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 3571,
+      "avg_response_ms": 3571
+    },
+    "9b09129343f03675": {
+      "prompt": "Which of the following statements correctly describe consequences or features of the generalized Bayes theorem with multiple categories? (Select all that apply.)",
+      "times_asked": 2,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:06:47.966559Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 2720,
+      "avg_response_ms": 2720
+    },
+    "f81fdf434f650fa4": {
+      "prompt": "Which conditions are required for applying the generalized Bayes formula correctly? (Select all that apply.)",
+      "times_asked": 2,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:06:55.848851Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 1115,
+      "avg_response_ms": 1115
+    },
+    "e45e68461343e935": {
+      "prompt": "Generalized Bayes theorem requires that the set of categories for event A be mutually exclusive and exhaustive.",
+      "times_asked": 2,
+      "last_answer": "False",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:07:04.560118Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 4089,
+      "avg_response_ms": 4089
+    },
+    "75b0265d58c0522a": {
+      "prompt": "When using generalized Bayes theorem to decide which production line produced a defective item, the posterior probability for a given line depends only on that line's prior and defect rate and is unaffected by other lines' defect rates.",
+      "times_asked": 2,
+      "last_answer": "True",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:07:08.652149Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 882,
+      "avg_response_ms": 882
+    },
+    "35e654ebdd6c3e8c": {
+      "prompt": "Write the generalized Bayes theorem formula for P(A_k | B) using summation notation.",
+      "times_asked": 2,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:07:16.844771Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 2986,
+      "avg_response_ms": 2986
+    },
+    "8bee866f1d1fff5d": {
+      "prompt": "Briefly explain how generalized Bayes theorem is applied in quality control with multiple categories (such as production lines or batches).",
+      "times_asked": 2,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:07:23.363301Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 1106,
+      "avg_response_ms": 1106
+    },
+    "b435ddfb353f150c": {
+      "prompt": "Three production lines produce 50%, 30%, and 20% of items respectively. Their defect rates are 0.02, 0.05, and 0.10 respectively. Compute the posterior probability that a randomly observed defective item came from the third line. Give the value to three decimal places.",
+      "times_asked": 2,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T12:07:30.770733Z",
+      "topics": [
+        "Bayes Theorem"
+      ],
+      "last_response_ms": 91837,
+      "avg_response_ms": 48085
+    },
+    "4a6c51e304a80cc9": {
+      "prompt": "What is the primary purpose of Bayes' theorem as described?",
+      "times_asked": 1,
+      "last_answer": "A) To compute the joint probability of two independent events only",
+      "last_correct": false,
+      "last_timestamp": "2025-09-08T16:59:15.056286Z",
+      "topics": [
+        "Bayes' theorem and conditional probability: revising priors into posteriors using new information."
+      ],
+      "last_response_ms": 51620,
+      "avg_response_ms": 51620
     }
   }
 }
