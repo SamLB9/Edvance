@@ -91,6 +91,8 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
         fmax, bmax = map_words.get(fr, (18, 60))[0], map_words.get(bk, (18, 60))[1]
         len_hint = f"Front ≤ {fmax} words; Back ≤ {bmax} words.\n"
 
+    # Build the user prompt by concatenating strings to avoid f-string backslash issues
+    latex_example = r"$P(A|B)=\frac{P(B|A)P(A)}{P(B)}$"
     user_prompt = (
         f"Topic hint: {topic or '(auto)'}\n"
         f"Content:\n---\n{context[:8000]}\n---\n"
@@ -106,7 +108,7 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
         "- If formulas are present (e.g., P(A|B), Bayes, sums/products, fractions), include formula-focused cards.\n"
         "  Prioritize: (1) the exact Bayes' theorem formula, (2) the multi-category version with a denominator sum, \n"
         "  (3) definitions of numerator/denominator terms, (4) a short worked example using the formula.\n"
-        "- You may include inline LaTeX for formulas using $...$ (e.g., $P(A|B)=\\frac{P(B|A)P(A)}{P(B)}$).\n"
+        f"- You may include inline LaTeX for formulas using $...$ (e.g., {latex_example}).\n"
         "- Output only JSON. No extra text, no markdown, no additional keys."
     )
     resp = llm.invoke([
