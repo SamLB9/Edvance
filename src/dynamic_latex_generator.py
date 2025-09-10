@@ -109,56 +109,28 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
     focus_clean = _clean(focus)
     pdf_doc_title = f"summary_{pdf_name_clean}_{focus_clean}"
 
-    # Standardized preamble (same every time)
+    # Simplified preamble using only basic LaTeX packages
     preamble = r"""
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage{microtype}
 \usepackage[a4paper,margin=25mm]{geometry}
-\usepackage{xcolor}
-\definecolor{primary}{HTML}{0B6FA4}
-\definecolor{secondary}{HTML}{3A6B8A}
-\definecolor{accent}{HTML}{6E7B8C}
-\definecolor{lightgray}{HTML}{F3F5F7}
 \usepackage{graphicx}
-\usepackage{float}
-\usepackage{amsmath,amssymb,amsthm}
-\usepackage{mathtools}
-\usepackage{enumitem}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tcolorbox}
-\tcbuselibrary{skins,breakable}
-\usepackage{sectsty}
-\allsectionsfont{\color{primary}\sffamily}
-\usepackage{titlesec}
-\titleformat{\section}{\Large\bfseries\sffamily\color{primary}}{\thesection}{1em}{}
-\titleformat{\subsection}{\large\bfseries\sffamily\color{secondary}}{\thesubsection}{0.8em}{}
-\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{accent}}{\thesubsubsection}{0.6em}{}
+\usepackage{amsmath,amssymb}
+\usepackage{color}
+\definecolor{primary}{rgb}{0.04,0.44,0.64}
+\definecolor{secondary}{rgb}{0.23,0.42,0.54}
+\definecolor{accent}{rgb}{0.43,0.48,0.55}
+\definecolor{lightgray}{rgb}{0.95,0.96,0.97}
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\renewcommand{\headrulewidth}{0.6pt}
-\renewcommand{\footrulewidth}{0.4pt}
-\renewcommand{\headrule}{\color{lightgray}\hrule height \headrulewidth \vspace{-\headrulewidth}}
-\fancyhead[L]{\sffamily\small Course Notes Summary}
-\fancyhead[C]{\sffamily\small Focus: """ + focus + r"""}
-\fancyhead[R]{\sffamily\small Source: """ + pdf_name + r"""}
-\fancyfoot[L]{\sffamily\small Generated: """ + generated + r"""}
-\fancyfoot[C]{}
-\fancyfoot[R]{\sffamily\small \thepage}
+\fancyhead[L]{\small Course Notes Summary}
+\fancyhead[C]{\small Focus: """ + focus + r"""}
+\fancyhead[R]{\small Source: """ + pdf_name + r"""}
+\fancyfoot[L]{\small Generated: """ + generated + r"""}
+\fancyfoot[R]{\small \thepage}
 \usepackage{hyperref}
 \hypersetup{pdftitle={""" + pdf_doc_title + r"""}, pdfauthor={Edvance}, colorlinks=true, linkcolor=primary, urlcolor=secondary, citecolor=primary}
-\setcounter{secnumdepth}{3}
-\setcounter{tocdepth}{2}
-\raggedbottom
-\usepackage{titling}
-\pretitle{\begin{center}\vspace*{1cm}\sffamily}
-\posttitle{\par\end{center}\vskip 0.2em}
-\preauthor{}\postauthor{}
-\predate{}\postdate{}
 % Helper macros used by model output
 \newcommand{\Prob}{\mathrm{P}}
 \newcommand{\given}{\,\mid\,}
@@ -181,27 +153,34 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
     \\vspace{{1em}}"""
         titlepage += logo_section
 
-    # Build titlepage content in parts to avoid f-string backslash issues
+    # Build simplified titlepage content using basic LaTeX
     titlepage_parts = [
         f"""
-    {{\\sffamily\\Huge\\bfseries\\color{{primary}} Course Notes Summary \\par}}
+    {{\\Huge\\bfseries\\color{{primary}} Course Notes Summary \\par}}
     \\vspace{{0.8em}}
-    {{\\sffamily\\Large\\color{{secondary}} Focus Area: {focus} \\par}}
+    {{\\Large\\color{{secondary}} Focus Area: {focus} \\par}}
     \\vspace{{1.5em}}
-    \\begin{{tcolorbox}}[enhanced,width=0.75\\textwidth,colback=lightgray,colframe=primary,boxrule=0.8pt,sharp corners,left=6pt,right=6pt,top=6pt,bottom=6pt]\\vspace{{0.5em}}
-      \\sffamily
-      \\begin{{tabular}}{{@{{}}p{{0.28\\textwidth}} p{{0.62\\textwidth}}@{{}}}}
-        \\textbf{{Source: }} & {pdf_name} \\\\
-        \\textbf{{Generated:}} & {generated} \\\\
-        \\textbf{{Summary Type:}} & {summary_type} \\\\
-      \\end{{tabular}}
-    \\end{{tcolorbox}}
+    \\begin{{center}}
+    \\begin{{minipage}}{{0.75\\textwidth}}
+    \\colorbox{{lightgray}}{{
+    \\begin{{minipage}}{{0.95\\textwidth}}
+    \\vspace{{0.5em}}
+    \\begin{{tabular}}{{p{{0.28\\textwidth}} p{{0.62\\textwidth}}}}
+    \\textbf{{Source: }} & {pdf_name} \\\\
+    \\textbf{{Generated:}} & {generated} \\\\
+    \\textbf{{Summary Type:}} & {summary_type} \\\\
+    \\end{{tabular}}
+    \\vspace{{0.5em}}
+    \\end{{minipage}}
+    }}
+    \\end{{minipage}}
+    \\end{{center}}
 
     \\vspace{{1.5em}}
-    {{\\small\\sffamily Prepared for quick revision and reference\\par}}
+    {{\\small Prepared for quick revision and reference\\par}}
     \\vfill
 
-    {{\\small\\sffamily \\color{{accent}} Use this sheet as a step-by-step guide when solving problems.}}
+    {{\\small \\color{{accent}} Use this sheet as a step-by-step guide when solving problems.}}
     \\vspace{{1.8cm}}
   \\end{{center}}
 \\end{{titlepage}}

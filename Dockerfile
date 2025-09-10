@@ -6,12 +6,13 @@
      PYTHONUNBUFFERED=1 \
      PIP_NO_CACHE_DIR=1
  
- # System packages (LaTeX for PDF generation)
- RUN apt-get update && apt-get install -y --no-install-recommends \
-     build-essential curl git \
-     texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-     texlive-fonts-recommended texlive-fonts-extra \
-     && rm -rf /var/lib/apt/lists/*
+# System packages (LaTeX for PDF generation)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl git \
+    texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+    texlive-fonts-recommended texlive-fonts-extra \
+    texlive-lang-english \
+    && rm -rf /var/lib/apt/lists/*
  
  WORKDIR /app
  

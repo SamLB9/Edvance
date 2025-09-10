@@ -10,6 +10,49 @@ from .config import OPENAI_MODEL
 from .dynamic_latex_generator import generate_latex_code
 
 
+def generate_basic_latex(summary_data: Dict[str, Any], logo_path: str = None) -> str:
+    """
+    Generate basic LaTeX code using only essential packages.
+    Fallback when advanced LaTeX generation fails.
+    """
+    focus = summary_data.get('focus', 'Unknown')
+    pdf_name = summary_data.get('pdf_name', 'Unknown')
+    generated = summary_data.get('timestamp', 'Unknown')
+    summary_type = summary_data.get('type', 'Comprehensive')
+    summary_content = summary_data.get('summary', 'No content available')
+    
+    # Basic LaTeX document with minimal packages
+    latex_content = f"""\\documentclass[11pt,a4paper]{{article}}
+\\usepackage[utf8]{{inputenc}}
+\\usepackage[a4paper,margin=25mm]{{geometry}}
+\\usepackage{{graphicx}}
+\\usepackage{{amsmath,amssymb}}
+
+\\begin{{document}}
+
+\\begin{{center}}
+\\Large\\textbf{{Course Notes Summary}}\\\\
+\\vspace{{0.5em}}
+\\large\\textbf{{Focus Area: {focus}}}\\\\
+\\vspace{{1em}}
+\\begin{{tabular}}{{ll}}
+\\textbf{{Source:}} & {pdf_name} \\\\
+\\textbf{{Generated:}} & {generated} \\\\
+\\textbf{{Type:}} & {summary_type} \\\\
+\\end{{tabular}}
+\\end{{center}}
+
+\\vspace{{1em}}
+\\hrule
+\\vspace{{1em}}
+
+{summary_content}
+
+\\end{{document}}"""
+    
+    return latex_content
+
+
 def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, summary_type: str = "Comprehensive") -> Dict[str, Any]:
     """
     Generate a summary and create a professional PDF version.
@@ -156,7 +199,8 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
             
         except Exception as e:
             print(f"Error generating LaTeX with GPT: {e}")
-            raise Exception(f"Error generating LaTeX with GPT: {e}")
+            # Fallback to basic LaTeX if advanced generation fails
+            latex_content = generate_basic_latex(summary_data, logo_path)
 
         # Create LaTeX file
         tex_filename = f"temp_{base_name}.tex"
@@ -187,13 +231,40 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
                     pdf_generated = True
             
             if not pdf_generated:
-                # Capture LaTeX compilation errors for debugging
-                error_msg = "PDF was not generated. LaTeX compilation failed."
-                if result.stderr:
-                    error_msg += f"\nLaTeX Error Output:\n{result.stderr}"
-                if result.stdout:
-                    error_msg += f"\nLaTeX Standard Output:\n{result.stdout}"
-                raise Exception(error_msg)
+                # Try fallback to basic LaTeX if advanced compilation fails
+                print("Advanced LaTeX compilation failed, trying basic LaTeX...")
+                basic_latex = generate_basic_latex(summary_data, logo_path)
+                
+                # Write basic LaTeX content to file
+                with open(tex_file_path, 'w', encoding='utf-8') as f:
+                    f.write(basic_latex)
+                
+                # Try compiling basic LaTeX
+                result = subprocess.run(
+                    ['pdflatex', '-interaction=nonstopmode', tex_filename],
+                    capture_output=True,
+                    text=True,
+                    cwd=abs_output_dir
+                )
+                
+                # Check if PDF was generated with basic LaTeX
+                if os.path.exists(pdf_path):
+                    pdf_generated = True
+                else:
+                    # Check for temp PDF file
+                    temp_pdf_path = os.path.join(abs_output_dir, f"temp_{base_name}.pdf")
+                    if os.path.exists(temp_pdf_path):
+                        shutil.move(temp_pdf_path, pdf_path)
+                        pdf_generated = True
+                
+                if not pdf_generated:
+                    # Capture LaTeX compilation errors for debugging
+                    error_msg = "PDF was not generated. Both advanced and basic LaTeX compilation failed."
+                    if result.stderr:
+                        error_msg += f"\nLaTeX Error Output:\n{result.stderr}"
+                    if result.stdout:
+                        error_msg += f"\nLaTeX Standard Output:\n{result.stdout}"
+                    raise Exception(error_msg)
 
         except Exception as e:
             raise Exception(f"Error during PDF generation: {e}")
