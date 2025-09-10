@@ -104,7 +104,7 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
         "Rules:\n",
         "- Each card must test a concept from the content (definitions, key formulas, assumptions, implications, examples).\n",
         "- Forbidden: questions about document structure (pages, lines, fonts, numerals) or generic number trivia.\n",
-        f"{len_hint or '- Front ≤ 18 words; Back ≤ 60 words.\n'}",
+        f"{len_hint or '- Front ≤ 18 words; Back ≤ 60 words.'}\n",
         "- Tags: 1–3 short tags (e.g., bayes, posterior, likelihood).\n",
         "- For cloze, use Anki syntax {{c1::...}} in the FRONT; BACK is a short elaboration.\n",
         "- If formulas are present (e.g., P(A|B), Bayes, sums/products, fractions), include formula-focused cards.\n",
