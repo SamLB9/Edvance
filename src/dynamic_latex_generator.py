@@ -174,13 +174,16 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
     # Add logo if available
     if logo_path and os.path.exists(logo_path):
         logo_filename = os.path.basename(logo_path)
-        titlepage += f"""
+        logo_section = f"""
     \\begin{{center}}
     \\includegraphics[width=0.3\\textwidth]{{{logo_filename}}}
     \\end{{center}}
     \\vspace{{1em}}"""
+        titlepage += logo_section
 
-    titlepage += f"""
+    # Build titlepage content in parts to avoid f-string backslash issues
+    titlepage_parts = [
+        f"""
     {{\\sffamily\\Huge\\bfseries\\color{{primary}} Course Notes Summary \\par}}
     \\vspace{{0.8em}}
     {{\\sffamily\\Large\\color{{secondary}} Focus Area: {focus} \\par}}
@@ -203,6 +206,9 @@ def create_complete_document(body_content: str, summary_data: Dict[str, Any], lo
   \\end{{center}}
 \\end{{titlepage}}
 """
+    ]
+    
+    titlepage += "".join(titlepage_parts)
 
     # Combine everything
     complete_document = preamble + "\n\\begin{document}\n\n" + titlepage + "\n" + body_content + "\n\n\\end{document}\n"

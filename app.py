@@ -1637,7 +1637,7 @@ def main():
     # Persistent navigation to prevent tab reset on rerun
     default_nav = st.session_state.get("nav", "Quiz")
     selected_nav = st.radio(
-        "",
+        "Navigation",
         ["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"],
         index=["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"].index(default_nav),
         horizontal=True,

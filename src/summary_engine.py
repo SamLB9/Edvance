@@ -187,7 +187,13 @@ def generate_pdf_summary(summary_data: Dict[str, Any], output_dir: str = "genera
                     pdf_generated = True
             
             if not pdf_generated:
-                raise Exception("PDF was not generated. Check LaTeX compilation logs for errors.")
+                # Capture LaTeX compilation errors for debugging
+                error_msg = "PDF was not generated. LaTeX compilation failed."
+                if result.stderr:
+                    error_msg += f"\nLaTeX Error Output:\n{result.stderr}"
+                if result.stdout:
+                    error_msg += f"\nLaTeX Standard Output:\n{result.stdout}"
+                raise Exception(error_msg)
 
         except Exception as e:
             raise Exception(f"Error during PDF generation: {e}")
