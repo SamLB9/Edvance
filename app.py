@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 from pathlib import Path
 import time
 import base64
@@ -21,6 +22,7 @@ from src.performance_config import PDF_PREVIEW_CACHE_LIMIT, DISABLE_DEBUG_OUTPUT
 
 NOTES_DIR = Path("data/notes")
 PROGRESS_PATH = Path("progress.json")
+TOPICS_PATH = Path("document_topics.json")
 
 # Global flag for background pre-loading
 _preload_started = False
@@ -40,6 +42,225 @@ def _preload_embeddings():
 
 def ensure_notes_dir() -> None:
     NOTES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_document_topics() -> Dict[str, str]:
+    """Load document topics from persistent storage"""
+    try:
+        if TOPICS_PATH.exists():
+            with open(TOPICS_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[AUTO_TOPIC] Error loading topics: {e}")
+    return {}
+
+
+def save_document_topics(topics: Dict[str, str]) -> None:
+    """Save document topics to persistent storage"""
+    try:
+        with open(TOPICS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(topics, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[AUTO_TOPIC] Error saving topics: {e}")
+
+
+def cleanup_orphaned_topics() -> None:
+    """Remove topics for files that no longer exist"""
+    try:
+        # Get list of current files
+        notes = list_notes()
+        current_files = {note["file"] for note in notes}
+        
+        # Load current topics
+        topics = load_document_topics()
+        
+        # Remove topics for files that no longer exist
+        topics_to_remove = []
+        for file_path in topics:
+            if file_path not in current_files:
+                topics_to_remove.append(file_path)
+        
+        if topics_to_remove:
+            for file_path in topics_to_remove:
+                del topics[file_path]
+                print(f"[AUTO_TOPIC] Removed orphaned topic for deleted file: {file_path}")
+            
+            # Save cleaned topics
+            save_document_topics(topics)
+            
+            # Update session state
+            if "document_topics" in st.session_state:
+                for file_path in topics_to_remove:
+                    st.session_state["document_topics"].pop(file_path, None)
+                    
+    except Exception as e:
+        print(f"[AUTO_TOPIC] Error cleaning up orphaned topics: {e}")
+
+
+def get_unique_name(base_name: str, existing_names: list) -> str:
+    """Generate a unique name by adding a number if duplicates exist."""
+    if base_name not in existing_names:
+        return base_name
+    
+    counter = 2
+    while f"{base_name} ({counter})" in existing_names:
+        counter += 1
+    return f"{base_name} ({counter})"
+
+def extract_tags_from_card(card: dict) -> list:
+    """Extract tags from card content (front/back text)."""
+    tags = []
+    
+    # Check if card has explicit tags field
+    if 'tags' in card and isinstance(card['tags'], list):
+        tags.extend([tag for tag in card['tags'] if tag.strip()])
+    
+    # Extract tags from front and back text (look for #hashtag patterns)
+    front_text = card.get('front', '')
+    back_text = card.get('back', '')
+    
+    import re
+    # Find hashtags in both front and back text
+    hashtag_pattern = r'#(\w+)'
+    front_tags = re.findall(hashtag_pattern, front_text)
+    back_tags = re.findall(hashtag_pattern, back_text)
+    
+    # Add unique hashtags
+    all_hashtags = list(set(front_tags + back_tags))
+    tags.extend([f"#{tag}" for tag in all_hashtags])
+    
+    # Remove duplicates and empty tags
+    return list(set([tag.strip() for tag in tags if tag.strip()]))
+
+def clean_text_from_tags(text: str) -> str:
+    """Remove hashtag tags from text content."""
+    import re
+    # Remove hashtags from text
+    cleaned = re.sub(r'#\w+\s*', '', text).strip()
+    return cleaned
+
+def get_document_topic(file_path: str) -> str:
+    """Get cached topic for a document, or return a default if not available"""
+    # First check session state (for immediate updates)
+    session_topics = st.session_state.get("document_topics", {})
+    if file_path in session_topics:
+        return session_topics[file_path]
+    
+    # Then check persistent storage
+    persistent_topics = load_document_topics()
+    if file_path in persistent_topics:
+        # Update session state with persistent data
+        if "document_topics" not in st.session_state:
+            st.session_state["document_topics"] = {}
+        st.session_state["document_topics"][file_path] = persistent_topics[file_path]
+        return persistent_topics[file_path]
+    
+    return "General Document"
+
+
+def generate_and_cache_document_topics(docs: List[Any]) -> None:
+    """Generate and cache auto-topics for uploaded documents to avoid repeated LLM calls"""
+    # Load existing topics from persistent storage
+    persistent_topics = load_document_topics()
+    
+    # Initialize session state with persistent topics
+    if "document_topics" not in st.session_state:
+        st.session_state["document_topics"] = persistent_topics.copy()
+    else:
+        # Merge persistent topics with session state
+        st.session_state["document_topics"].update(persistent_topics)
+    
+    # Get list of current files
+    notes = list_notes()
+    current_files = {note["file"] for note in notes}
+    
+    # Check which files need topic generation
+    files_needing_topics = []
+    for file_info in notes:
+        file_path = file_info["file"]
+        if file_path not in st.session_state["document_topics"]:
+            files_needing_topics.append(file_path)
+    
+    if not files_needing_topics:
+        return
+    
+    # Generate topics for files that don't have them
+    topics_updated = False
+    try:
+        from src.auto_topic import one_liner_from_context
+        from src.retriever import retrieve_context
+        
+        # Ensure vector store is loaded
+        if "vs" not in st.session_state:
+            ensure_vectorstore_loaded()
+        
+        for file_path in files_needing_topics:
+            try:
+                # Get context for this specific file
+                full_path = str((NOTES_DIR / file_path).resolve())
+                context = retrieve_context(st.session_state.vs, file_path, k=8, source_path=full_path)
+                
+                if context.strip():
+                    # Generate topic using the existing function
+                    topic = one_liner_from_context(context)
+                    st.session_state["document_topics"][file_path] = topic
+                    print(f"[AUTO_TOPIC] Generated topic for {file_path}: {topic}")
+                    topics_updated = True
+                else:
+                    # Fallback topic if no context found
+                    st.session_state["document_topics"][file_path] = "General Document"
+                    print(f"[AUTO_TOPIC] No context found for {file_path}, using fallback topic")
+                    topics_updated = True
+                    
+            except Exception as e:
+                print(f"[AUTO_TOPIC] Error generating topic for {file_path}: {e}")
+                st.session_state["document_topics"][file_path] = "General Document"
+                topics_updated = True
+                
+    except Exception as e:
+        print(f"[AUTO_TOPIC] Error in topic generation process: {e}")
+    
+    # Save updated topics to persistent storage
+    if topics_updated:
+        save_document_topics(st.session_state["document_topics"])
+
+
+
+
+def is_any_generation_in_progress() -> bool:
+    """Check if any content generation is currently in progress across all tabs"""
+    return (
+        st.session_state.get("quiz_generating", False) or
+        st.session_state.get("quiz_pending_start") is not None or
+        st.session_state.get("summary_generating", False) or
+        st.session_state.get("summary_pending") is not None or
+        st.session_state.get("fc_pending") is not None or
+        st.session_state.get("busy", False)
+    )
+
+
+def show_generation_warning_if_needed(current_tab_type: str) -> None:
+    """Show warning message if another tab is generating content"""
+    if is_any_generation_in_progress():
+        # Check if current tab is not the one generating
+        is_current_tab_generating = False
+        
+        if current_tab_type == "quiz":
+            is_current_tab_generating = (
+                st.session_state.get("quiz_generating", False) or
+                st.session_state.get("quiz_pending_start") is not None
+            )
+        elif current_tab_type == "summary":
+            is_current_tab_generating = (
+                st.session_state.get("summary_generating", False) or
+                st.session_state.get("summary_pending") is not None
+            )
+        elif current_tab_type == "flashcards":
+            is_current_tab_generating = st.session_state.get("fc_pending") is not None
+        
+        # Show warning only if current tab is not generating
+        if not is_current_tab_generating:
+            st.warning("⚠️ Another generation is in progress. Please wait for it to complete.")
 
 
 def save_uploaded_files(files: List[st.runtime.uploaded_file_manager.UploadedFile]) -> List[Path]:
@@ -120,6 +341,12 @@ def ensure_vectorstore_loaded() -> None:
             st.session_state.vs = _load_vectorstore()
 
 
+def clear_quiz_generation_state() -> None:
+    """Clear only quiz generation state, not quiz content"""
+    st.session_state.pop("quiz_generating", None)
+    st.session_state.pop("quiz_pending_start", None)
+
+
 def reset_quiz_state() -> None:
     """Reset only quiz-related state, not summary state"""
     st.session_state.quiz_started = False
@@ -136,8 +363,7 @@ def reset_quiz_state() -> None:
     st.session_state.last_q = None
     st.session_state.busy = False
     # Clear quiz-specific state
-    st.session_state.pop("quiz_generating", None)
-    st.session_state.pop("quiz_pending_start", None)
+    clear_quiz_generation_state()
 
 
 def ensure_quiz_state_initialized() -> None:
@@ -197,16 +423,33 @@ def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str, question
     _quiz_debug(f"start_quiz: reference_file={(reference_file or 'None')}")
     ctx = retrieve_context(st.session_state.vs, topic, k=8, source_path=reference_file)
     _quiz_debug(f"start_quiz: retrieved context length={len(ctx)} chars")
-    # If no topic provided, infer pseudo-topic from context
+    # If no topic provided, try to get cached topic for the reference file, or infer from context
     _topic = topic.strip()
     if not _topic:
-        try:
-            from src.auto_topic import one_liner_from_context
-            _topic = one_liner_from_context(ctx)
-            _quiz_debug(f'start_quiz: inferred pseudo-topic="{_topic}"')
-        except Exception:
-            _topic = "Key concepts and results"
-            _quiz_debug("start_quiz: pseudo-topic inference failed; using fallback topic")
+        # Try to get cached topic for the reference file first
+        if reference_file:
+            cached_topic = get_document_topic(reference_file)
+            if cached_topic != "General Document":
+                _topic = cached_topic
+                _quiz_debug(f'start_quiz: using cached topic="{_topic}" for {reference_file}')
+            else:
+                # Fallback to context-based inference
+                try:
+                    from src.auto_topic import one_liner_from_context
+                    _topic = one_liner_from_context(ctx)
+                    _quiz_debug(f'start_quiz: inferred pseudo-topic="{_topic}"')
+                except Exception:
+                    _topic = "Key concepts and results"
+                    _quiz_debug("start_quiz: pseudo-topic inference failed; using fallback topic")
+        else:
+            # No reference file, try context-based inference
+            try:
+                from src.auto_topic import one_liner_from_context
+                _topic = one_liner_from_context(ctx)
+                _quiz_debug(f'start_quiz: inferred pseudo-topic="{_topic}"')
+            except Exception:
+                _topic = "Key concepts and results"
+                _quiz_debug("start_quiz: pseudo-topic inference failed; using fallback topic")
     topic = _topic
     if not ctx.strip():
         st.warning("No relevant context retrieved. Try uploading notes and rebuilding.")
@@ -255,6 +498,9 @@ def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str, question
     st.session_state.last_took_ms = 0
     st.session_state.last_q = None
     st.session_state.busy = False
+    
+    # Show success toast
+    st.toast("Quiz generated successfully!", icon="✅", duration=5)
 
 
 def render_question(i: int, q: Dict[str, Any]) -> str:
@@ -347,9 +593,10 @@ def grade_and_log(i: int, q: Dict[str, Any], student_answer: str, took_ms: int) 
 def quiz_tab():
     st.subheader("Quiz")
     
-    # Clear any summary-related state when entering quiz tab
-    st.session_state.pop("summary_generating", None)
-    st.session_state.pop("summary_pending", None)
+    # Don't clear summary_generating to maintain persistence across navigation
+    # Only clear summary_pending if summary is not currently generating
+    if not st.session_state.get("summary_generating", False):
+        st.session_state.pop("summary_pending", None)
     
     # Spinner below handles transient loading; avoid extra banner at top
     # Auto-recover quiz_started flag if questions persist (after tab switches)
@@ -407,7 +654,14 @@ def quiz_tab():
     # Reactive topic input: updates session_state on each keystroke
     # Use a separate widget key and persist to a stable state key to survive tab switches
     _persisted_topic = st.session_state.get("quiz_topic", "")
-    st.text_input("Topic", value=_persisted_topic, key="quiz_topic_input", disabled=quiz_started)
+    
+    # Get suggested topic for placeholder
+    suggested_topic = ""
+    if st.session_state.get("quiz_reference_file"):
+        suggested_topic = get_document_topic(st.session_state.get("quiz_reference_file", ""))
+    
+    st.text_input("Focus Area/Topic (optional)", key="quiz_topic_input", disabled=quiz_started, 
+                  placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
     # Mirror widget value into persistent key every rerun (allowed: different key than widget)
     st.session_state["quiz_topic"] = st.session_state.get("quiz_topic_input", _persisted_topic)
     topic = st.session_state["quiz_topic"]
@@ -475,13 +729,17 @@ def quiz_tab():
             st.rerun()
 
     if not quiz_started:
+        # Show warning if another tab is generating content
+        show_generation_warning_if_needed("quiz")
+        
         # Do not require Topic text to start
-        start_disabled = st.session_state.get("busy", False) or st.session_state.get("quiz_generating", False)
+        start_disabled = is_any_generation_in_progress()
         cols_btn = st.columns(2)
         with cols_btn[0]:
             if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
-                # Two-phase start: set flags then rerun so Stop & Reset appears immediately
+                # Set generation state immediately to disable other tabs
                 st.session_state["quiz_generating"] = True
+                # Two-phase start: set flags then rerun so Stop & Reset appears immediately
                 # Snapshot current mix and normalize counts to N
                 raw_mix = {
                     "mcq_single": int(st.session_state.get("mix_mcq_single", 0)),
@@ -556,7 +814,20 @@ def quiz_tab():
         st.session_state.busy = True
         with st.spinner("Preparing quiz..."):
             _quiz_debug("pending_start: detected; initializing")
-            reset_quiz_state()
+            # Reset quiz content but keep generation state until completion
+            st.session_state.quiz_started = False
+            st.session_state.questions = []
+            st.session_state.current_idx = 0
+            st.session_state.answers = []
+            st.session_state.response_ms = []
+            st.session_state.feedbacks = []
+            st.session_state.correct_count = 0
+            st.session_state.q_start = None
+            st.session_state.step = "question"
+            st.session_state.last_feedback = None
+            st.session_state.last_took_ms = 0
+            st.session_state.last_q = None
+            st.session_state.busy = False
             # Store difficulty for engine
             st.session_state["difficulty"] = pending.get("difficulty")
             _quiz_debug(f"pending_start: settings n={pending.get('n')}, avoid={pending.get('avoid_mode')}, feedback={pending.get('feedback_mode')}")
@@ -582,7 +853,7 @@ def quiz_tab():
         st.session_state.busy = False
         st.session_state["quiz_generating"] = False
         st.session_state.pop("quiz_pending_start", None)
-        st.rerun()
+        # Don't call st.rerun() here to avoid interfering with navigation
 
     if not st.session_state.get("quiz_started"):
         return
@@ -716,14 +987,13 @@ def finish_quiz() -> None:
 
 
 def upload_tab():
-    st.subheader("Upload Notes")
+    st.subheader("Upload Courses")
     st.write("Upload PDF, TXT, or MD files to include in your study notes.")
     
-    # Clear any quiz/summary-related state when entering upload tab
-    st.session_state.pop("quiz_generating", None)
-    st.session_state.pop("quiz_pending_start", None)
-    st.session_state.pop("summary_generating", None)
-    st.session_state.pop("summary_pending", None)
+    # Don't clear summary_generating to maintain persistence across navigation
+    # Only clear summary_pending if summary is not currently generating
+    if not st.session_state.get("summary_generating", False):
+        st.session_state.pop("summary_pending", None)
     
     files = st.file_uploader("Upload files", type=["pdf", "txt", "md"], accept_multiple_files=True)
     if files:
@@ -738,6 +1008,12 @@ def upload_tab():
                 docs = load_documents(str(NOTES_DIR))
                 chunks = chunk_documents(docs)
                 st.session_state.vs = build_or_load_vectorstore(chunks)
+            
+            # Clean up orphaned topics and generate new ones
+            cleanup_orphaned_topics()
+            with st.spinner("Generating document topics..."):
+                generate_and_cache_document_topics(docs)
+            
             st.session_state.last_upload_sig = sig
             st.session_state.vs_built_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
             # Clear caches when vector store is rebuilt
@@ -746,7 +1022,7 @@ def upload_tab():
             pdf_cache_keys = [k for k in st.session_state.keys() if k.startswith("pdf_preview_")]
             for key in pdf_cache_keys:
                 st.session_state.pop(key, None)
-            st.success(f"Uploaded {len(saved)} files. Vector store rebuilt.")
+            st.success(f"Uploaded {len(saved)} files. Vector store rebuilt and topics generated.")
             st.balloons()
         else:
             st.caption("These uploads have already been processed.")
@@ -756,55 +1032,149 @@ def upload_tab():
         <style>.file-meta{font-size:12px; color:rgba(128,128,128,0.9);}</style>
     """, unsafe_allow_html=True)
 
-    # Current PDFs on disk with preview and delete
+    # Current documents with their topics and preview
     notes = list_notes()
-    st.write("### Current PDFs")
-    pdf_notes = [n for n in notes if str(n.get("file", "")).lower().endswith(".pdf")]
-    if not pdf_notes:
-        st.caption("No PDFs found yet in data/notes.")
+    st.write("### 📚 Uploaded Documents")
+    
+    if not notes:
+        st.caption("No documents found yet in data/notes.")
     else:
-        for i, n in enumerate(pdf_notes):
+        # Get document topics
+        document_topics = st.session_state.get("document_topics", {})
+        
+        for i, n in enumerate(notes):
             rel = n.get("file", "")
             size_kb = n.get("size_kb", "?")
             modified = n.get("modified", "")
             path = NOTES_DIR / rel
+            
+            # Get the topic for this document
+            topic = document_topics.get(rel, "General Document")
+            
             # Use native bordered container so all widgets are inside the same card
             with st.container(border=True):
-                cols = st.columns([8, 1])
+                # Header with file info and topic
+                cols = st.columns([5, 2])
                 with cols[0]:
                     st.markdown(f"**{rel}**")
                     st.markdown(f"<div class='file-meta'>Size: {size_kb} KB • Modified: {modified}</div>", unsafe_allow_html=True)
+                    if topic != "General Document":
+                        st.markdown(f"📝 **Topic:** {topic}")
+                    else:
+                        st.markdown("📝 **Topic:** Not generated yet")
+                
                 with cols[1]:
-                    if st.button("🗑️ Delete", key=f"del_pdf_{i}"):
-                        try:
-                            if path.exists() and path.is_file():
-                                path.unlink()
-                                # Clear caches
-                                _list_notes_cached.clear()
-                                _load_vectorstore.clear()
-                                with st.spinner("Updating vector store..."):
-                                    docs = load_documents(str(NOTES_DIR))
-                                    chunks = chunk_documents(docs)
-                                    st.session_state.vs = build_or_load_vectorstore(chunks)
-                                st.success(f"Deleted {rel}.")
-                                st.rerun()
-                        except Exception as e:
-                            st.warning(f"Could not delete {rel}: {e}")
+                    # Action buttons with equal width
+                    col_actions = st.columns([1, 1, 1])
+                    with col_actions[0]:
+                        if st.button("🔄 Regenerate Topic Name", key=f"regen_topic_{i}", help="Regenerate the auto-topic for this document", use_container_width=True):
+                            # Regenerate topic for this specific file
+                            try:
+                                from src.auto_topic import one_liner_from_context
+                                from src.retriever import retrieve_context
+                                
+                                full_path = str((NOTES_DIR / rel).resolve())
+                                context = retrieve_context(st.session_state.vs, rel, k=8, source_path=full_path)
+                                
+                                if context.strip():
+                                    new_topic = one_liner_from_context(context)
+                                    st.session_state["document_topics"][rel] = new_topic
+                                    # Save to persistent storage
+                                    save_document_topics(st.session_state["document_topics"])
+                                    st.success(f"Topic updated for {rel}")
+                                    st.rerun()
+                                else:
+                                    st.warning(f"No context found for {rel}")
+                            except Exception as e:
+                                st.error(f"Error regenerating topic: {e}")
+                    
+                    with col_actions[1]:
+                        if st.button("✏️ Edit Topic", key=f"edit_topic_{i}", help="Edit the topic for this document", use_container_width=True):
+                            # Toggle edit mode for this document
+                            edit_key = f"edit_mode_{i}"
+                            st.session_state[edit_key] = True
+                            st.rerun()
+                    
+                    with col_actions[2]:
+                        if st.button("🗑️ Delete", key=f"del_doc_{i}", help="Delete this document", use_container_width=True):
+                            try:
+                                if path.exists() and path.is_file():
+                                    path.unlink()
+                                    # Remove from topics if exists
+                                    if rel in st.session_state.get("document_topics", {}):
+                                        del st.session_state["document_topics"][rel]
+                                        save_document_topics(st.session_state["document_topics"])
+                                    
+                                    # Clear caches
+                                    _list_notes_cached.clear()
+                                    _load_vectorstore.clear()
+                                    with st.spinner("Updating vector store..."):
+                                        docs = load_documents(str(NOTES_DIR))
+                                        chunks = chunk_documents(docs)
+                                        st.session_state.vs = build_or_load_vectorstore(chunks)
+                                    st.success(f"Deleted {rel}.")
+                                    st.rerun()
+                            except Exception as e:
+                                st.warning(f"Could not delete {rel}: {e}")
 
-                # PDF preview placed below the card
-                with st.expander("📄 PDF preview", expanded=False):
+                # Check if this document is in edit mode
+                edit_key = f"edit_mode_{i}"
+                is_editing = st.session_state.get(edit_key, False)
+                
+                if is_editing:
+                    # Edit mode - show text input and action buttons
+                    st.markdown("---")
+                    st.markdown("**Edit Topic:**")
+                    
+                    # Text input for editing
+                    new_topic = st.text_input(
+                        "Topic:",
+                        value=topic if topic != "General Document" else "",
+                        key=f"topic_input_{i}",
+                        placeholder="Enter a custom topic for this document",
+                        label_visibility="collapsed"
+                    )
+                    
+                    # Edit action buttons
+                    col_edit_actions = st.columns([1, 1, 4])
+                    with col_edit_actions[0]:
+                        if st.button("✅ Save", key=f"save_topic_{i}", help="Save the edited topic"):
+                            if new_topic.strip():
+                                st.session_state["document_topics"][rel] = new_topic.strip()
+                                save_document_topics(st.session_state["document_topics"])
+                                st.session_state[edit_key] = False
+                                st.success(f"Topic updated for {rel}")
+                                st.rerun()
+                            else:
+                                st.warning("Topic cannot be empty")
+                    
+                    with col_edit_actions[1]:
+                        if st.button("❌ Cancel", key=f"cancel_edit_{i}", help="Cancel editing"):
+                            st.session_state[edit_key] = False
+                            st.rerun()
+
+                # Document preview placed below the card
+                with st.expander("📄 Document preview", expanded=False):
                     try:
                         if path.exists():
-                            with open(path, "rb") as f:
-                                _bytes = f.read()
-                            import base64 as _b64
-                            b64 = _b64.b64encode(_bytes).decode()
-                            iframe = f"""
-                            <iframe src=\"data:application/pdf;base64,{b64}\" 
-                                    width=\"100%\" height=\"1200px\" 
-                                    style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
-                            """
-                            st.markdown(iframe, unsafe_allow_html=True)
+                            if path.suffix.lower() == ".pdf":
+                                with open(path, "rb") as f:
+                                    _bytes = f.read()
+                                import base64 as _b64
+                                b64 = _b64.b64encode(_bytes).decode()
+                                iframe = f"""
+                                <iframe src=\"data:application/pdf;base64,{b64}\" 
+                                        width=\"100%\" height=\"1200px\" 
+                                        style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
+                                """
+                                st.markdown(iframe, unsafe_allow_html=True)
+                            else:
+                                # Text file preview
+                                try:
+                                    text = path.read_text(encoding="utf-8", errors="ignore")
+                                except Exception:
+                                    text = "(Could not read file as text)"
+                                st.code(text[:5000], language="markdown")
                         else:
                             st.caption("File not found.")
                     except Exception as _e:
@@ -828,31 +1198,313 @@ def _get_progress_data():
 def progress_tab():
     st.subheader("Progress")
     
-    # Clear any quiz/summary-related state when entering progress tab
-    st.session_state.pop("quiz_generating", None)
-    st.session_state.pop("quiz_pending_start", None)
-    st.session_state.pop("summary_generating", None)
-    st.session_state.pop("summary_pending", None)
+    # Don't clear summary_generating to maintain persistence across navigation
+    # Only clear summary_pending if summary is not currently generating
+    if not st.session_state.get("summary_generating", False):
+        st.session_state.pop("summary_pending", None)
+    
+    # Create sub-tabs
+    tab1, tab2, tab3 = st.tabs(["💾 Saved Content", "📈 Quiz Progress", "❌ Frequently Missed"])
+    
+    with tab1:
+        saved_content_tab()
+    
+    with tab2:
+        quiz_progress_tab()
+    
+    with tab3:
+        frequently_missed_tab()
+
+
+def saved_content_tab():
+    """Manages saved study materials"""
+    st.write("### 💾 Saved Content")
+    st.write("Manage your saved study materials and generated content.")
+    
+    # Show saved PDFs from summary generation
+    saved_pdfs = st.session_state.get("saved_pdfs", [])
+    if saved_pdfs:
+        st.write(f"**Saved PDFs ({len(saved_pdfs)}):**")
+        for i, pdf_info in enumerate(saved_pdfs):
+            with st.container(border=True):
+                col1, col2 = st.columns([6, 1])
+                with col1:
+                    st.write(f"**{pdf_info['filename']}**")
+                    st.caption(f"Focus: {pdf_info['focus']} | Source: {pdf_info['source']} | Generated: {pdf_info['timestamp']}")
+                with col2:
+                    if st.button("🗑️ Remove", key=f"remove_pdf_{i}"):
+                        st.session_state["saved_pdfs"].pop(i)
+                        st.success("PDF removed from session")
+                        st.rerun()
+                
+                # PDF Preview Overlay - spans full width
+                with st.expander("📄 PDF Preview", expanded=False):
+                    if pdf_info.get("pdf_base64"):
+                        pdf_display = f"""
+                        <div style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 5px;">
+                            <iframe src="data:application/pdf;base64,{pdf_info['pdf_base64']}" 
+                                    width="100%" height="100%" 
+                                    style="border: none;">
+                            </iframe>
+                        </div>
+                        """
+                        st.markdown(pdf_display, unsafe_allow_html=True)
+                    else:
+                        st.info("PDF preview not available")
+    else:
+        st.info("No saved content yet. Generate summaries in the Summary tab to save PDFs here.")
+    
+    # Show saved flashcard decks
+    saved_decks = st.session_state.get("saved_decks", [])
+    if saved_decks:
+        st.write(f"**Saved Flashcard Decks ({len(saved_decks)}):**")
+        for i, deck in enumerate(saved_decks):
+            with st.container(border=True):
+                col1, col2, col3 = st.columns([5, 1, 1])
+                with col1:
+                    st.write(f"**{deck.get('name', 'Untitled Deck')}**")
+                    st.caption(f"Cards: {len(deck.get('cards', []))} | Subject: {deck.get('subject', 'N/A')}")
+                with col2:
+                    if st.session_state.get(f"editing_deck_{i}", False):
+                        if st.button("✅ Done", key=f"done_deck_{i}"):
+                            # Save changes and exit edit mode
+                            
+                            # Update deck name
+                            new_name = st.session_state.get(f"edit_name_{i}", deck.get('name', ''))
+                            st.session_state["saved_decks"][i]["name"] = new_name
+                            
+                            # Update cards
+                            cards = deck.get('cards', [])
+                            for j, card in enumerate(cards):
+                                # Get updated values from session state
+                                front_key = f"edit_front_{i}_{j}"
+                                back_key = f"edit_back_{i}_{j}"
+                                tags_key = f"edit_tags_{i}_{j}"
+                                
+                                front = st.session_state.get(front_key, card.get('front', ''))
+                                back = st.session_state.get(back_key, card.get('back', ''))
+                                tags_input = st.session_state.get(tags_key, "")
+                                
+                                # Parse tags
+                                if tags_input:
+                                    new_tags = [tag.strip() for tag in tags_input.split(",") if tag.strip()]
+                                else:
+                                    new_tags = []
+                                
+                                # Update card
+                                cards[j] = {
+                                    "front": front, 
+                                    "back": back,
+                                    "tags": new_tags
+                                }
+                            
+                            # Update deck with new cards
+                            st.session_state["saved_decks"][i]["cards"] = cards
+                            
+                            # Recalculate content hash
+                            import hashlib
+                            import json
+                            content_data = {
+                                "cards": cards,
+                                "options": st.session_state["saved_decks"][i].get("options", {})
+                            }
+                            content_str = json.dumps(content_data, sort_keys=True)
+                            content_hash = hashlib.md5(content_str.encode()).hexdigest()
+                            st.session_state["saved_decks"][i]["content_hash"] = content_hash
+                            
+                            # Clear edit mode and expand preview
+                            st.session_state[f"editing_deck_{i}"] = False
+                            st.session_state[f"preview_expanded_{i}"] = True
+                            st.success("Deck updated successfully!")
+                            st.rerun()
+                    else:
+                        if st.button("✏️ Edit", key=f"edit_deck_{i}"):
+                            st.session_state[f"editing_deck_{i}"] = True
+                            st.rerun()
+                with col3:
+                    if st.button("🗑️ Remove", key=f"remove_deck_{i}"):
+                        st.session_state["saved_decks"].pop(i)
+                        st.success("Deck removed from session")
+                        st.rerun()
+                
+                # Edit Mode Interface
+                if st.session_state.get(f"editing_deck_{i}", False):
+                    st.markdown("---")
+                    st.write("**✏️ Edit Deck:**")
+                    
+                    # Edit deck name
+                    new_name = st.text_input("Deck Name:", value=deck.get('name', ''), key=f"edit_name_{i}")
+                    
+                    # Edit cards
+                    cards = deck.get('cards', [])
+                    st.write(f"**Cards ({len(cards)}):**")
+                    
+                    # Add new card button
+                    if st.button("➕ Add Card", key=f"add_card_{i}"):
+                        cards.append({"front": "", "back": ""})
+                        st.session_state["saved_decks"][i]["cards"] = cards
+                        st.rerun()
+                    
+                    # Edit existing cards
+                    for j, card in enumerate(cards):
+                        with st.container(border=True):
+                            st.write(f"**Card {j+1}:**")
+                            col1, col2 = st.columns([4, 1])
+                            with col1:
+                                # Extract current tags and clean text
+                                current_tags = extract_tags_from_card(card)
+                                clean_front = clean_text_from_tags(card.get('front', ''))
+                                clean_back = clean_text_from_tags(card.get('back', ''))
+                                
+                                front = st.text_area("Front:", value=clean_front, key=f"edit_front_{i}_{j}", height=80)
+                                back = st.text_area("Back:", value=clean_back, key=f"edit_back_{i}_{j}", height=80)
+                                
+                                # Tags editing section
+                                
+                                # Convert tags list to comma-separated string
+                                tags_string = ", ".join(current_tags) if current_tags else ""
+                                tags_input = st.text_input(
+                                    "Tags (comma-separated):", 
+                                    value=tags_string, 
+                                    key=f"edit_tags_{i}_{j}", 
+                                    placeholder="Enter tags separated by commas (e.g., #math, #formula, #physics)"
+                                )
+                                
+                                # Convert comma-separated string back to tags list
+                                if tags_input:
+                                    # Split by comma and clean up each tag
+                                    new_tags = [tag.strip() for tag in tags_input.split(",") if tag.strip()]
+                                    current_tags = new_tags
+                                else:
+                                    current_tags = []
+                                
+                                # Update card with cleaned text and tags
+                                cards[j] = {
+                                    "front": front, 
+                                    "back": back,
+                                    "tags": [tag for tag in current_tags if tag.strip()]  # Remove empty tags
+                                }
+                            with col2:
+                                if st.button("🗑️ Remove", key=f"delete_card_{i}_{j}"):
+                                    cards.pop(j)
+                                    st.rerun()
+                    
+                
+                # Deck Preview Overlay - only show when not in edit mode
+                if not st.session_state.get(f"editing_deck_{i}", False):
+                    # Keep expanded if user just finished editing
+                    preview_expanded = st.session_state.get(f"preview_expanded_{i}", False)
+                    with st.expander("📚 Deck Preview", expanded=preview_expanded) as preview_expander:
+                        # Reset the preview state when user manually toggles
+                        if preview_expander != preview_expanded:
+                            st.session_state[f"preview_expanded_{i}"] = False
+                        st.write("**Deck Preview:**")
+                        cards = deck.get('cards', [])
+                        if cards:
+                            for j, card in enumerate(cards):  # Show all cards
+                                # Extract and display tags
+                                tags = extract_tags_from_card(card)
+                                front_text = clean_text_from_tags(card.get('front', ''))
+                                back_text = clean_text_from_tags(card.get('back', ''))
+                                
+                                st.write(f"**Card {j+1}:** {front_text}")
+                                st.caption(f"Answer: {back_text}")
+                                
+                                # Show tags if they exist
+                                if tags:
+                                    tag_display = ", ".join([f"`{tag}`" for tag in tags])
+                                    st.caption(f"Tags: {tag_display}")
+                                
+                                if j < len(cards) - 1:  # Add separator between cards (except last one)
+                                    st.markdown("---")
+                        else:
+                            st.info("No cards in this deck")
+    else:
+        st.info("No saved flashcard decks yet. Generate flashcards in the Flash Cards tab to save decks here.")
+
+
+def quiz_progress_tab():
+    """Displays quiz performance analytics"""
+    st.write("### 📈 Quiz Progress")
+    st.write("View your quiz performance and analytics.")
     
     data = _get_progress_data()
     sessions = data.get("sessions", [])
 
-    st.write("### Sessions")
     if sessions:
+        st.write("**Recent Quiz Sessions:**")
         st.dataframe(sessions, use_container_width=True)
+        
+        # Performance metrics
+        if len(sessions) > 0:
+            st.write("**Performance Summary:**")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            # Calculate metrics
+            scores = [s.get("score", 0) for s in sessions if isinstance(s.get("score"), (int, float))]
+            avg_score = sum(scores) / len(scores) if scores else 0
+            best_score = max(scores) if scores else 0
+            total_quizzes = len(sessions)
+            recent_scores = scores[-5:] if len(scores) >= 5 else scores
+            recent_avg = sum(recent_scores) / len(recent_scores) if recent_scores else 0
+            
+            with col1:
+                st.metric("Average Score", f"{avg_score:.1f}%")
+            with col2:
+                st.metric("Best Score", f"{best_score:.1f}%")
+            with col3:
+                st.metric("Total Quizzes", total_quizzes)
+            with col4:
+                st.metric("Recent Average", f"{recent_avg:.1f}%")
+            
+            # Performance trend
+            if len(scores) > 1:
+                st.write("**Performance Trend:**")
+                import pandas as pd
+                df_trend = pd.DataFrame({
+                    'Quiz': range(1, len(scores) + 1),
+                    'Score': scores
+                })
+                st.line_chart(df_trend.set_index('Quiz'))
     else:
-        st.caption("No sessions yet.")
+        st.info("No quiz sessions yet. Take some quizzes to see your progress here!")
 
-    st.write("### Frequently Missed (by topic)")
+
+def frequently_missed_tab():
+    """Shows problematic questions for review"""
+    st.write("### ❌ Frequently Missed")
+    st.write("Review questions you've struggled with to improve your understanding.")
+    
+    data = _get_progress_data()
+    sessions = data.get("sessions", [])
+    
+    # Get all topics from sessions
     topics = sorted({s.get("topic", "") for s in sessions if s.get("topic")})
-    topic = st.selectbox("Topic", options=topics or [""], index=0 if topics else 0)
-    if topic:
-        memory = JsonMemory(str(PROGRESS_PATH))
-        missed = memory.get_frequently_missed(topic, min_attempts=1, limit=10)
-        if missed:
-            st.dataframe(missed, use_container_width=True)
-        else:
-            st.caption("No frequently missed questions yet for this topic.")
+    
+    if topics:
+        topic = st.selectbox("Select Topic", options=topics, index=0)
+        if topic:
+            memory = JsonMemory(str(PROGRESS_PATH))
+            missed = memory.get_frequently_missed(topic, min_attempts=1, limit=10)
+            if missed:
+                st.write(f"**Frequently missed questions for '{topic}':**")
+                st.dataframe(missed, use_container_width=True)
+                
+                # Show detailed view of missed questions
+                if st.checkbox("Show detailed view", key="detailed_missed"):
+                    st.write("**Detailed Analysis:**")
+                    for i, question in enumerate(missed):
+                        with st.expander(f"Question {i+1}: {question.get('prompt', '')[:100]}..."):
+                            st.write(f"**Question:** {question.get('prompt', '')}")
+                            st.write(f"**Correct Answer:** {question.get('answer', '')}")
+                            st.write(f"**Your Attempts:** {question.get('attempts', 0)}")
+                            st.write(f"**Success Rate:** {question.get('success_rate', 0):.1f}%")
+                            if question.get('last_attempt'):
+                                st.write(f"**Last Attempt:** {question.get('last_attempt', '')}")
+            else:
+                st.info(f"No frequently missed questions yet for '{topic}'. Keep practicing!")
+    else:
+        st.info("No quiz topics available yet. Take some quizzes to see frequently missed questions here!")
 
 
 def summary_tab():
@@ -862,14 +1514,10 @@ def summary_tab():
     Each summary includes your business branding and professional styling.
     """)
     
-    # Clear any quiz-related state when entering summary tab
-    st.session_state.pop("quiz_generating", None)
-    st.session_state.pop("quiz_pending_start", None)
-    
-    # Ensure we're not in quiz mode when in summary tab
-    if st.session_state.get("quiz_started", False):
-        st.info("Please finish or reset your current quiz before generating summaries.")
-        return
+    # Don't clear quiz_generating to maintain persistence across navigation
+    # Only clear quiz_pending_start if quiz is not currently generating
+    if not st.session_state.get("quiz_generating", False):
+        st.session_state.pop("quiz_pending_start", None)
     
     # Check if vector store is loaded
     ensure_vectorstore_loaded()
@@ -877,7 +1525,7 @@ def summary_tab():
     # Get list of available notes
     notes = list_notes()
     if not notes:
-        st.warning("No notes found. Please upload some notes first in the Upload Notes tab.")
+        st.warning("No notes found. Please upload some notes first in the Upload Courses tab.")
         return
     
     # Create file selection dropdown
@@ -910,50 +1558,71 @@ def summary_tab():
             st.caption(f"Preview unavailable: {_e}")
     
     # Focus area input
-    focus = st.text_input("Focus Area/Topic (optional)", placeholder="Leave empty for a general summary of the selected PDF")
+    # Get suggested topic for placeholder
+    suggested_topic = ""
+    if selected_file:
+        suggested_topic = get_document_topic(selected_file)
+    
+    focus = st.text_input("Focus Area/Topic (optional)", 
+                         placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
     
     # Summary type removed; default to Comprehensive
     summary_type = "Comprehensive"
     
-    # Actions row: Generate and Stop & Reset side-by-side (uniform widths)
-    st.markdown(
-        """
-        <style>
-        #summary-actions .stButton > button { width: 100%; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("<div id='summary-actions'>", unsafe_allow_html=True)
-    action_cols = st.columns([1, 1, 6])
-    with action_cols[0]:
-        generate_clicked = st.button("Generate Summary", disabled=not selected_file)
-    with action_cols[1]:
-        is_generating = st.session_state.get("summary_generating", False)
-        has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
-        if st.button("⏹️ Stop & Reset", help="Cancel current generation and clear current preview", disabled=False if is_generating else not (is_generating or has_summary)):
-            # Clear only the current preview/result; keep saved PDFs intact
-            for k in [
-                "last_summary_result",
-                "last_pdf_bytes",
-                "last_pdf_base64",
-                "last_pdf_filename",
-            ]:
-                st.session_state.pop(k, None)
-            st.session_state["summary_generating"] = False
-            st.session_state.pop("summary_pending", None)
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Check if summary is currently generating
+    is_summary_generating = st.session_state.get("summary_generating", False)
+    has_summary_pending = st.session_state.get("summary_pending") is not None
+    
+    if not is_summary_generating and not has_summary_pending:
+        # Show warning if another tab is generating content
+        show_generation_warning_if_needed("summary")
+        
+        # Actions row: Generate and Stop & Reset side-by-side (uniform widths)
+        action_cols = st.columns([1, 1, 6])
+        with action_cols[0]:
+            generate_clicked = st.button("Generate Summary", disabled=not selected_file or is_any_generation_in_progress())
+        with action_cols[1]:
+            has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
+            if st.button("⏹️ Stop & Reset", help="Clear current preview", disabled=not has_summary):
+                # Clear only the current preview/result; keep saved PDFs intact
+                for k in [
+                    "last_summary_result",
+                    "last_pdf_bytes",
+                    "last_pdf_base64",
+                    "last_pdf_filename",
+                ]:
+                    st.session_state.pop(k, None)
+                st.rerun()
+    else:
+        # Show disabled buttons during generation
+        action_cols = st.columns([1, 1, 6])
+        with action_cols[0]:
+            st.button("Generate Summary", disabled=True, key="generate_summary_disabled")
+        with action_cols[1]:
+            if st.button("⏹️ Stop & Reset", help="Cancel current generation", key="stop_reset_active"):
+                # Clear generation state and results
+                for k in [
+                    "last_summary_result",
+                    "last_pdf_bytes",
+                    "last_pdf_base64",
+                    "last_pdf_filename",
+                ]:
+                    st.session_state.pop(k, None)
+                st.session_state["summary_generating"] = False
+                st.session_state.pop("summary_pending", None)
+                st.rerun()
 
     # Generate summary flow
-    if generate_clicked:
-        st.session_state["summary_generating"] = True
-        st.session_state["summary_pending"] = {
-            "focus": focus,
-            "selected_file": selected_file,
-            "summary_type": summary_type,
-        }
-        st.rerun()
+    if not is_summary_generating and not has_summary_pending:
+        if 'generate_clicked' in locals() and generate_clicked:
+            # Set generation state immediately to disable other tabs
+            st.session_state["summary_generating"] = True
+            st.session_state["summary_pending"] = {
+                "focus": focus,
+                "selected_file": selected_file,
+                "summary_type": summary_type,
+            }
+            st.rerun()
 
     pending_summary = st.session_state.get("summary_pending")
     if pending_summary:
@@ -985,7 +1654,7 @@ def summary_tab():
                 )
                 
                 if result.get("status") == "success":
-                    st.success("✅ Summary generated successfully!")
+                    st.toast("Summary generated successfully!", icon="✅", duration=5)
                     # Persist result and PDF so preview survives reruns (e.g., slider adjustments)
                     st.session_state["last_summary_result"] = result
                     try:
@@ -1022,7 +1691,7 @@ def summary_tab():
                 return
         st.session_state["summary_generating"] = False
         st.session_state.pop("summary_pending", None)
-        st.rerun()
+        # Don't call st.rerun() here to avoid interfering with navigation
     
     # Persistent PDF preview (survives widget changes)
     persisted = st.session_state.get("last_summary_result")
@@ -1073,10 +1742,23 @@ def summary_tab():
                         use_container_width=True,
                     )
                     if save_clicked:
-                        # Save PDF to session state for persistent access (prevent duplicates by filename)
+                        # Save PDF to session state for persistent access (prevent duplicates by content hash)
                         st.session_state["saved_pdfs"] = st.session_state.get("saved_pdfs", [])
                         current_name = st.session_state.get("last_pdf_filename", "summary.pdf")
-                        already_saved = any(p.get("filename") == current_name for p in st.session_state["saved_pdfs"])
+                        
+                        # Create content hash based on PDF content and focus area
+                        import hashlib
+                        import json
+                        pdf_content = st.session_state.get("last_pdf_content", "")
+                        focus_area = persisted.get('focus', '')
+                        content_data = {
+                            "pdf_content": pdf_content,
+                            "focus": focus_area
+                        }
+                        content_str = json.dumps(content_data, sort_keys=True)
+                        content_hash = hashlib.md5(content_str.encode()).hexdigest()
+                        
+                        already_saved = any(p.get("content_hash") == content_hash for p in st.session_state["saved_pdfs"])
                         if already_saved:
                             # Show a toast that auto-dismisses (Streamlit >= 1.29)
                             try:
@@ -1085,13 +1767,18 @@ def summary_tab():
                                 # Fallback inline info (non-blocking, no sleep)
                                 st.info("This file has already been saved")
                         else:
+                            # Generate unique filename if duplicates exist
+                            existing_filenames = [p.get("filename", "") for p in st.session_state["saved_pdfs"]]
+                            unique_filename = get_unique_name(current_name, existing_filenames)
+                            
                             pdf_info = {
-                                "filename": current_name,
+                                "filename": unique_filename,
                                 "focus": persisted.get('focus', ''),
                                 "source": persisted.get('pdf_name', ''),
                                 "timestamp": persisted.get('timestamp', ''),
                                 "pdf_bytes": st.session_state["last_pdf_bytes"],
-                                "pdf_base64": st.session_state.get("last_pdf_base64", "")
+                                "pdf_base64": st.session_state.get("last_pdf_base64", ""),
+                                "content_hash": content_hash
                             }
                             st.session_state["saved_pdfs"].append(pdf_info)
                             st.success(f"✅ PDF saved! ({len(st.session_state['saved_pdfs'])} PDFs in session)")
@@ -1165,11 +1852,10 @@ def summary_tab():
 def flashcards_tab():
     st.subheader("Flash Card Generator")
     
-    # Clear any quiz/summary-related state when entering flashcards tab
-    st.session_state.pop("quiz_generating", None)
-    st.session_state.pop("quiz_pending_start", None)
-    st.session_state.pop("summary_generating", None)
-    st.session_state.pop("summary_pending", None)
+    # Don't clear summary_generating to maintain persistence across navigation
+    # Only clear summary_pending if summary is not currently generating
+    if not st.session_state.get("summary_generating", False):
+        st.session_state.pop("summary_pending", None)
     
     # Initialize session containers
     if "fc_deck_meta" not in st.session_state:
@@ -1205,11 +1891,51 @@ def flashcards_tab():
     except Exception:
         default_idx = 0
     ref = st.selectbox("PDF/Notes", files, index=default_idx, key="fc_ref")
-    topic = st.text_input("Topic (optional)", key="fc_topic")
+    
+    # Preview the selected file (same preview feature as in Quiz and Summary)
+    ref_path = NOTES_DIR / ref
+    with st.expander("📄 PDF preview", expanded=False):
+        try:
+            if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
+                # Cache PDF base64 to avoid repeated encoding
+                cache_key = f"pdf_preview_{ref_path.name}_{ref_path.stat().st_mtime}"
+                if cache_key not in st.session_state:
+                    with open(ref_path, "rb") as f:
+                        _bytes = f.read()
+                    import base64 as _b64
+                    b64 = _b64.b64encode(_bytes).decode()
+                    st.session_state[cache_key] = b64
+                else:
+                    b64 = st.session_state[cache_key]
+                
+                iframe = f"""
+                <iframe src=\"data:application/pdf;base64,{b64}\" 
+                        width=\"100%\" height=\"1100px\" 
+                        style=\"border: 1px solid #e0e0e0; border-radius: 6px;\"></iframe>
+                """
+                st.markdown(iframe, unsafe_allow_html=True)
+            elif ref_path.exists():
+                try:
+                    text = ref_path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    text = "(Could not read file as text)"
+                st.code(text[:5000], language="markdown")
+            else:
+                st.caption("Selected reference file not found.")
+        except Exception as _e:
+            st.caption(f"Preview unavailable: {_e}")
+    
+    # Suggest cached topic if available
+    suggested_topic = ""
+    if st.session_state.get("fc_ref"):
+        suggested_topic = get_document_topic(st.session_state.get("fc_ref", ""))
+    
+    topic = st.text_input("Focus Area/Topic (optional)", key="fc_topic", 
+                         placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for auto-generated topic")
     # Deck name (moved out of overlay)
     st.session_state["fc_deck_meta"]["name"] = st.text_input(
         "Deck name (optional)",
-        value=st.session_state["fc_deck_meta"].get("name", ""),
+        placeholder=f"Leave empty to use '{suggested_topic}' as deck name." if suggested_topic != "General Document" else "Leave empty for auto-generated topic",
         help="Leave blank to auto‑name on save from the PDF context",
     )
 
@@ -1338,17 +2064,21 @@ def flashcards_tab():
             if isinstance(_k, str) and _k.startswith("fc_edit_"):
                 st.session_state.pop(_k, None)
 
+    # Show warning if another tab is generating content
+    show_generation_warning_if_needed("flashcards")
+    
     # Actions row: Generate and Stop & Reset (does not affect saved decks)
     fc_actions = st.columns(2)
     with fc_actions[0]:
-        if st.button("Generate Cards"):
-            # Two-phase flow so the spinner appears immediately on the next run
+        if st.button("Generate Cards", disabled=is_any_generation_in_progress()):
+            # Set generation state immediately to disable other tabs
             st.session_state["fc_pending"] = {
                 "ref": ref,
                 "topic": topic.strip(),
                 "n": int(n_cards),
                 "options": st.session_state.get("fc_options", {}),
             }
+            # Two-phase flow so the spinner appears immediately on the next run
             st.rerun()
     with fc_actions[1]:
         can_reset_fc = bool(st.session_state.get("fc_pending") or st.session_state.get("fc_cards"))
@@ -1374,11 +2104,26 @@ def flashcards_tab():
                 return
             pseudo = pending_fc.get("topic", "").strip()
             if not pseudo:
-                try:
-                    from src.auto_topic import one_liner_from_context
-                    pseudo = one_liner_from_context(ctx)
-                except Exception:
-                    pseudo = "Key concepts"
+                # Try to get cached topic for the reference file first
+                ref_name = pending_fc.get("ref") or st.session_state.get("fc_ref")
+                if ref_name:
+                    cached_topic = get_document_topic(ref_name)
+                    if cached_topic != "General Document":
+                        pseudo = cached_topic
+                    else:
+                        # Fallback to context-based inference
+                        try:
+                            from src.auto_topic import one_liner_from_context
+                            pseudo = one_liner_from_context(ctx)
+                        except Exception:
+                            pseudo = "Key concepts"
+                else:
+                    # No reference file, try context-based inference
+                    try:
+                        from src.auto_topic import one_liner_from_context
+                        pseudo = one_liner_from_context(ctx)
+                    except Exception:
+                        pseudo = "Key concepts"
             opts = pending_fc.get("options", {})
             allow_cloze_flag = ("cloze" in (opts.get("card_types", ["term_def","qa","cloze"])) )
             out = generate_flashcards(
@@ -1395,8 +2140,9 @@ def flashcards_tab():
                 return
             st.session_state["fc_cards"] = cards
             st.session_state["fc_pseudo_topic"] = pseudo
+            st.toast("Flash cards generated successfully!", icon="✅", duration=5)
         st.session_state.pop("fc_pending", None)
-        st.rerun()
+        # Don't call st.rerun() here to avoid interfering with navigation
 
     cards = st.session_state.get("fc_cards", [])
     if cards:
@@ -1407,15 +2153,24 @@ def flashcards_tab():
             if not deck_name:
                 try:
                     ref_name = st.session_state.get("fc_ref")
-                    ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
-                    topic_hint = (st.session_state.get("fc_topic", "").strip() or st.session_state.get("fc_pseudo_topic", "").strip())
-                    ctx = retrieve_context(st.session_state.vs, topic_hint, k=5, source_path=ref_abs)
-                    try:
-                        from src.auto_topic import one_liner_from_context
-                        auto_name = one_liner_from_context(ctx).strip()
-                    except Exception:
-                        auto_name = "Study Deck"
-                    deck_name = auto_name or "Study Deck"
+                    if ref_name:
+                        # Try to get cached topic for the reference file first
+                        cached_topic = get_document_topic(ref_name)
+                        if cached_topic != "General Document":
+                            deck_name = cached_topic
+                        else:
+                            # Fallback to context-based inference
+                            ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
+                            topic_hint = (st.session_state.get("fc_topic", "").strip() or st.session_state.get("fc_pseudo_topic", "").strip())
+                            ctx = retrieve_context(st.session_state.vs, topic_hint, k=5, source_path=ref_abs)
+                            try:
+                                from src.auto_topic import one_liner_from_context
+                                auto_name = one_liner_from_context(ctx).strip()
+                                deck_name = auto_name or "Study Deck"
+                            except Exception:
+                                deck_name = "Study Deck"
+                    else:
+                        deck_name = "Study Deck"
                 except Exception:
                     deck_name = "Study Deck"
                 st.session_state["fc_deck_meta"]["name"] = deck_name
@@ -1426,9 +2181,39 @@ def flashcards_tab():
                 "cards": st.session_state.get("fc_cards", []),
                 "options": st.session_state.get("fc_options", {}),
             }
-            st.session_state.setdefault("saved_decks", []).append(deck_info)
+            # Prevent duplicate saves by content hash (cards + options)
+            import hashlib
+            import json
+            saved_decks = st.session_state.setdefault("saved_decks", [])
+            
+            # Create content hash based on cards and options (excluding name and metadata)
+            content_data = {
+                "cards": deck_info.get("cards", []),
+                "options": deck_info.get("options", {})
+            }
+            content_str = json.dumps(content_data, sort_keys=True)
+            content_hash = hashlib.md5(content_str.encode()).hexdigest()
+            
+            is_duplicate = any(
+                (isinstance(d, dict) and d.get("content_hash") == content_hash)
+                for d in saved_decks
+            )
+            if is_duplicate:
+                try:
+                    st.toast(f"This deck has already been saved", icon="ℹ️", duration=5)
+                except Exception:
+                    st.info(f"This deck has already been saved")
+                return
+            # Generate unique name if duplicates exist
+            existing_names = [d.get("name", "") for d in saved_decks if isinstance(d, dict)]
+            unique_name = get_unique_name(deck_name, existing_names)
+            deck_info["name"] = unique_name
+            
+            # Add content hash to deck info for future duplicate detection
+            deck_info["content_hash"] = content_hash
+            saved_decks.append(deck_info)
             try:
-                st.toast(f"Deck saved as '{deck_info['name']}'", icon="✅")
+                st.toast(f"The deck has been saved", icon="✅")
             except Exception:
                 st.success(f"Deck saved as '{deck_info['name']}'")
 
@@ -1637,9 +2422,9 @@ def main():
     # Persistent navigation to prevent tab reset on rerun
     default_nav = st.session_state.get("nav", "Quiz")
     selected_nav = st.radio(
-        "Navigation",
-        ["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"],
-        index=["Upload Notes", "Progress", "Quiz", "Summary", "Flash Cards"].index(default_nav),
+        "",
+        ["Upload Courses", "Summary", "Flash Cards", "Quiz", "Progress"],
+        index=["Upload Courses", "Summary", "Flash Cards", "Quiz", "Progress"].index(default_nav),
         horizontal=True,
         key="nav",
     )
@@ -1648,12 +2433,21 @@ def main():
     if selected_nav in ["Quiz", "Summary", "Flash Cards"]:
         ensure_quiz_state_initialized()
         ensure_vectorstore_loaded()
+        # Load topics from persistent storage and generate missing ones
+        if "document_topics" not in st.session_state:
+            docs = load_documents(str(NOTES_DIR))
+            generate_and_cache_document_topics(docs)
     elif selected_nav == "Progress":
         # Only initialize minimal state for progress tab
         if "nav" not in st.session_state:
             st.session_state["nav"] = selected_nav
+    elif selected_nav == "Upload Courses":
+        # Load topics from persistent storage and generate missing ones
+        if "document_topics" not in st.session_state:
+            docs = load_documents(str(NOTES_DIR))
+            generate_and_cache_document_topics(docs)
 
-    if selected_nav == "Upload Notes":
+    if selected_nav == "Upload Courses":
         upload_tab()
     elif selected_nav == "Progress":
         progress_tab()
