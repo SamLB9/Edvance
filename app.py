@@ -1054,7 +1054,7 @@ def upload_tab():
             # Use native bordered container so all widgets are inside the same card
             with st.container(border=True):
                 # Header with file info and topic
-                cols = st.columns([5, 2])
+                cols = st.columns([2, 2])
                 with cols[0]:
                     st.markdown(f"**{rel}**")
                     st.markdown(f"<div class='file-meta'>Size: {size_kb} KB • Modified: {modified}</div>", unsafe_allow_html=True)
