@@ -260,7 +260,7 @@ def show_generation_warning_if_needed(current_tab_type: str) -> None:
         
         # Show warning only if current tab is not generating
         if not is_current_tab_generating:
-            st.warning("⚠️ Another generation is in progress. Please wait for it to complete.")
+            st.warning("⚠️ Another generation is in progress. Please wait for it to complete to start a new generation.")
 
 
 def save_uploaded_files(files: List[st.runtime.uploaded_file_manager.UploadedFile]) -> List[Path]:
@@ -661,7 +661,7 @@ def quiz_tab():
         suggested_topic = get_document_topic(st.session_state.get("quiz_reference_file", ""))
     
     st.text_input("Focus Area/Topic (optional)", key="quiz_topic_input", disabled=quiz_started, 
-                  placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
+                  placeholder=f'Leave empty to use "{suggested_topic}" as topic for the selected course.' if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
     # Mirror widget value into persistent key every rerun (allowed: different key than widget)
     st.session_state["quiz_topic"] = st.session_state.get("quiz_topic_input", _persisted_topic)
     topic = st.session_state["quiz_topic"]
@@ -733,7 +733,13 @@ def quiz_tab():
         show_generation_warning_if_needed("quiz")
         
         # Do not require Topic text to start
-        start_disabled = is_any_generation_in_progress()
+        # Disable if another tab is generating OR if quiz content is already displayed
+        has_quiz_content = bool(
+            st.session_state.get("quiz_started") or 
+            st.session_state.get("questions") or 
+            st.session_state.get("quiz_topic")
+        )
+        start_disabled = is_any_generation_in_progress() or has_quiz_content
         cols_btn = st.columns(2)
         with cols_btn[0]:
             if st.button("Start Quiz", disabled=start_disabled, key="start_quiz"):
@@ -1204,22 +1210,25 @@ def progress_tab():
         st.session_state.pop("summary_pending", None)
     
     # Create sub-tabs
-    tab1, tab2, tab3 = st.tabs(["💾 Saved Content", "📈 Quiz Progress", "❌ Frequently Missed"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Saved Summaries", "📚 Saved Decks", "📈 Quiz Progress", "❌ Frequently Missed"])
     
     with tab1:
-        saved_content_tab()
+        saved_summaries_tab()
     
     with tab2:
-        quiz_progress_tab()
+        saved_decks_tab()
     
     with tab3:
+        quiz_progress_tab()
+    
+    with tab4:
         frequently_missed_tab()
 
 
-def saved_content_tab():
-    """Manages saved study materials"""
-    st.write("### 💾 Saved Content")
-    st.write("Manage your saved study materials and generated content.")
+def saved_summaries_tab():
+    """Manages saved summary PDFs"""
+    st.write("### 📄 Saved Summaries")
+    st.write("Manage your saved summary PDFs and generated content.")
     
     # Show saved PDFs from summary generation
     saved_pdfs = st.session_state.get("saved_pdfs", [])
@@ -1252,7 +1261,13 @@ def saved_content_tab():
                     else:
                         st.info("PDF preview not available")
     else:
-        st.info("No saved content yet. Generate summaries in the Summary tab to save PDFs here.")
+        st.info("No saved summaries yet. Generate summaries in the Summary tab to save PDFs here.")
+
+
+def saved_decks_tab():
+    """Manages saved flashcard decks"""
+    st.write("### 📚 Saved Flashcard Decks")
+    st.write("Manage your saved flashcard decks and study materials.")
     
     # Show saved flashcard decks
     saved_decks = st.session_state.get("saved_decks", [])
@@ -1564,7 +1579,7 @@ def summary_tab():
         suggested_topic = get_document_topic(selected_file)
     
     focus = st.text_input("Focus Area/Topic (optional)", 
-                         placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
+                         placeholder=f'Leave empty to use "{suggested_topic}" as topic for the selected course.' if suggested_topic != "General Document" else "Leave empty for a general summary of the selected PDF")
     
     # Summary type removed; default to Comprehensive
     summary_type = "Comprehensive"
@@ -1580,7 +1595,14 @@ def summary_tab():
         # Actions row: Generate and Stop & Reset side-by-side (uniform widths)
         action_cols = st.columns([1, 1, 6])
         with action_cols[0]:
-            generate_clicked = st.button("Generate Summary", disabled=not selected_file or is_any_generation_in_progress())
+            # Disable if no file selected, another tab is generating, OR if summary content is already displayed
+            has_summary_content = bool(
+                st.session_state.get("last_summary_result") or 
+                st.session_state.get("last_pdf_bytes") or
+                st.session_state.get("last_pdf_base64") or
+                st.session_state.get("last_pdf_filename")
+            )
+            generate_clicked = st.button("Generate Summary", disabled=not selected_file or is_any_generation_in_progress() or has_summary_content)
         with action_cols[1]:
             has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
             if st.button("⏹️ Stop & Reset", help="Clear current preview", disabled=not has_summary):
@@ -1931,15 +1953,22 @@ def flashcards_tab():
         suggested_topic = get_document_topic(st.session_state.get("fc_ref", ""))
     
     topic = st.text_input("Focus Area/Topic (optional)", key="fc_topic", 
-                         placeholder=f"Leave empty to use '{suggested_topic}' as topic for the selected course." if suggested_topic != "General Document" else "Leave empty for auto-generated topic")
+                         placeholder=f'Leave empty to use "{suggested_topic}" as topic for the selected course.' if suggested_topic != "General Document" else "Leave empty for auto-generated topic")
     # Deck name (moved out of overlay)
     st.session_state["fc_deck_meta"]["name"] = st.text_input(
         "Deck name (optional)",
-        placeholder=f"Leave empty to use '{suggested_topic}' as deck name." if suggested_topic != "General Document" else "Leave empty for auto-generated topic",
+        placeholder=f'Leave empty to use "{suggested_topic}" as deck name.' if suggested_topic != "General Document" else "Leave empty for auto-generated topic",
         help="Leave blank to auto‑name on save from the PDF context",
     )
 
-    n_cards = st.number_input("Number of cards", 1, 50, st.session_state["fc_options"]["counts"]["total"], 1)
+    n_cards = st.number_input(
+            "Number of cards",
+            min_value=1,
+            max_value=50,
+            value=st.session_state.get("fc_n", 10),
+            step=1,
+        )
+
     st.session_state["fc_options"]["counts"]["total"] = int(n_cards)
 
     # Simplified mix: proportions only
@@ -2070,7 +2099,13 @@ def flashcards_tab():
     # Actions row: Generate and Stop & Reset (does not affect saved decks)
     fc_actions = st.columns(2)
     with fc_actions[0]:
-        if st.button("Generate Cards", disabled=is_any_generation_in_progress()):
+        # Disable if another tab is generating OR if flashcard content is already displayed
+        has_fc_content = bool(
+            st.session_state.get("fc_cards") or 
+            st.session_state.get("fc_pending") or
+            st.session_state.get("fc_pseudo_topic")
+        )
+        if st.button("Generate Cards", disabled=is_any_generation_in_progress() or has_fc_content):
             # Set generation state immediately to disable other tabs
             st.session_state["fc_pending"] = {
                 "ref": ref,

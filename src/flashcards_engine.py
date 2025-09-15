@@ -98,7 +98,7 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
     user_prompt_parts = [
         f"Topic hint: {topic or '(auto)'}\n",
         f"Content:\n---\n{context[:8000]}\n---\n",
-        f"Create {n} cards. {typeline}\n",
+        f"Create {max(n, int(n * 1.5))} cards. {typeline}\n",
         f"{mix_hint}",
         f"{type_hint}",
         "Rules:\n",
@@ -137,7 +137,8 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
             continue
         front = _normalize_text(str(c.get("front", "")), max_words=18)
         back = _normalize_text(str(c.get("back", "")), max_words=60)
-        if not front or not back:
+        # Be more lenient with filtering to ensure we get enough cards
+        if not front.strip() or not back.strip():
             continue
         key = " ".join(front.lower().split())
         if key in seen_fronts:
@@ -171,7 +172,27 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
             "tags": [str(t)[:24] for t in tags[:5]],
         })
 
-    return {"cards": clean[: max(1, int(n))]}
+    # Ensure we return exactly the requested number of cards
+    result_cards = clean[: max(1, int(n))]
+    
+    # If we don't have enough cards, try to generate more
+    if len(result_cards) < n and len(raw_cards) > 0:
+        # Try to be more lenient with the remaining cards
+        additional_cards = []
+        for c in raw_cards[len(clean):]:  # Check cards that were filtered out
+            if isinstance(c, dict):
+                front = str(c.get("front", "")).strip()
+                back = str(c.get("back", "")).strip()
+                if front and back and len(additional_cards) < (n - len(result_cards)):
+                    additional_cards.append({
+                        "type": str(c.get("type", "qa")).lower(),
+                        "front": front,
+                        "back": back,
+                        "tags": c.get("tags", [])[:5] if isinstance(c.get("tags"), list) else []
+                    })
+        result_cards.extend(additional_cards)
+    
+    return {"cards": result_cards[: max(1, int(n))]}
 
 
 def to_tsv(cards: List[Dict[str, Any]]) -> str:
