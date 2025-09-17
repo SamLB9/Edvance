@@ -21,6 +21,39 @@
         "difficulty": "hard",
         "feedback_mode": "end"
       }
+    },
+    {
+      "timestamp": "2025-09-17T13:44:08.992928Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "score": 25.0,
+      "details": {
+        "raw": "1/4",
+        "avoid_mode": "all",
+        "difficulty": "medium",
+        "feedback_mode": "immediate"
+      }
+    },
+    {
+      "timestamp": "2025-09-17T14:16:23.344871Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "score": 25.0,
+      "details": {
+        "raw": "1/4",
+        "avoid_mode": "all",
+        "difficulty": "medium",
+        "feedback_mode": "immediate"
+      }
+    },
+    {
+      "timestamp": "2025-09-17T14:16:25.073717Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "score": 25.0,
+      "details": {
+        "raw": "1/4",
+        "avoid_mode": "all",
+        "difficulty": "medium",
+        "feedback_mode": "immediate"
+      }
     }
   ],
   "attempts": [
@@ -329,6 +362,42 @@
       "student_answer": "A) To compute the joint probability of two independent events only",
       "correct": false,
       "response_ms": 51620
+    },
+    {
+      "timestamp": "2025-09-17T13:43:07.607619Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "question_id": "b1b70250adcd70b2",
+      "prompt": "Which choice correctly defines the terms prior probability and posterior probability?",
+      "student_answer": "A) A prior probability is the initial probability before additional information; a posterior probability is the probability revised after incorporating new information.",
+      "correct": true,
+      "response_ms": 8970
+    },
+    {
+      "timestamp": "2025-09-17T13:43:19.787839Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "question_id": "f4474404d8e6c004",
+      "prompt": "Which statement best captures the essence of Bayes' theorem as described in the material?",
+      "student_answer": "C) Bayes' theorem requires that events be independent in order to update probabilities.",
+      "correct": false,
+      "response_ms": 1936
+    },
+    {
+      "timestamp": "2025-09-17T13:43:34.093278Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "question_id": "782c18083ae78124",
+      "prompt": "State Bayes' theorem for two events A and B, giving the formula for P(A | B) in terms of P(B | A), P(A), and P(B).",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 5488
+    },
+    {
+      "timestamp": "2025-09-17T13:44:06.891634Z",
+      "topic": "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities.",
+      "question_id": "d5eca26b2cecdf2a",
+      "prompt": "Write the generalized Bayes' theorem for a partition {A_i} (i = 1,...,n) and explain in one sentence why this generalization is useful in quality control applications.",
+      "student_answer": "",
+      "correct": false,
+      "response_ms": 1696
     }
   ],
   "questions": {
@@ -619,6 +688,54 @@
       ],
       "last_response_ms": 51620,
       "avg_response_ms": 51620
+    },
+    "b1b70250adcd70b2": {
+      "prompt": "Which choice correctly defines the terms prior probability and posterior probability?",
+      "times_asked": 1,
+      "last_answer": "A) A prior probability is the initial probability before additional information; a posterior probability is the probability revised after incorporating new information.",
+      "last_correct": true,
+      "last_timestamp": "2025-09-17T13:43:07.607619Z",
+      "topics": [
+        "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities."
+      ],
+      "last_response_ms": 8970,
+      "avg_response_ms": 8970
+    },
+    "f4474404d8e6c004": {
+      "prompt": "Which statement best captures the essence of Bayes' theorem as described in the material?",
+      "times_asked": 1,
+      "last_answer": "C) Bayes' theorem requires that events be independent in order to update probabilities.",
+      "last_correct": false,
+      "last_timestamp": "2025-09-17T13:43:19.787839Z",
+      "topics": [
+        "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities."
+      ],
+      "last_response_ms": 1936,
+      "avg_response_ms": 1936
+    },
+    "782c18083ae78124": {
+      "prompt": "State Bayes' theorem for two events A and B, giving the formula for P(A | B) in terms of P(B | A), P(A), and P(B).",
+      "times_asked": 1,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-17T13:43:34.093278Z",
+      "topics": [
+        "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities."
+      ],
+      "last_response_ms": 5488,
+      "avg_response_ms": 5488
+    },
+    "d5eca26b2cecdf2a": {
+      "prompt": "Write the generalized Bayes' theorem for a partition {A_i} (i = 1,...,n) and explain in one sentence why this generalization is useful in quality control applications.",
+      "times_asked": 1,
+      "last_answer": "",
+      "last_correct": false,
+      "last_timestamp": "2025-09-17T13:44:06.891634Z",
+      "topics": [
+        "Introduction to conditional probability and Bayes' theorem, including prior and posterior probabilities."
+      ],
+      "last_response_ms": 1696,
+      "avg_response_ms": 1696
     }
   }
 }

@@ -121,6 +121,7 @@ def generate_quiz(
     excluded_prompts: Optional[List[str]] = None,
     difficulty: Optional[str] = None,
     question_mix_counts: Optional[Dict[str, int]] = None,
+    user_context: str = "",
 ) -> Quiz:
     """Generate a quiz as a parsed JSON object (dict) with schema Quiz.
 
@@ -168,7 +169,13 @@ def generate_quiz(
                 "Ensure the total number of questions equals the requested count."
             )
 
+    # Build user context section
+    user_context_section = ""
+    if user_context:
+        user_context_section = f"USER PROFILE:\n{user_context}\n\nPlease adjust the complexity and terminology of the questions to match the user's academic level and background.\n\n"
+    
     user_prompt = (
+        f"{user_context_section}"
         f"Topic: {topic}\n"
         f"Context (from course notes):\n---\n{context}\n---\n"
         f"Create {n_questions} questions that are answerable using only the subject-matter content above."
@@ -177,6 +184,7 @@ def generate_quiz(
         f"- Do not write questions about the structure/format of the text; focus on concepts, results, definitions, proofs, computations, and interpretations present in the content.\n"
         f"- Do not reference 'the context', 'the text above', 'this document', or page/line numbers in prompts.\n"
         f"- Prefer precise, content-anchored prompts and unambiguous answers."
+        f"- **IMPORTANT**: Adjust the complexity and terminology based on the user's academic level and background provided above."
         f"\nChosen difficulty: {difficulty or 'auto'}"
         f"{mix_instructions}"
         f"{avoidance_instructions}"

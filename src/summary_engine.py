@@ -53,7 +53,7 @@ def generate_basic_latex(summary_data: Dict[str, Any], logo_path: str = None) ->
     return latex_content
 
 
-def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, summary_type: str = "Comprehensive") -> Dict[str, Any]:
+def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, summary_type: str = "Comprehensive", user_context: str = "") -> Dict[str, Any]:
     """
     Generate a summary and create a professional PDF version.
     
@@ -69,9 +69,20 @@ def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, 
     # Generate the summary first
     llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.3)
     
+    # Build user context section
+    user_context_section = ""
+    if user_context:
+        user_context_section = f"""
+    USER PROFILE:
+    {user_context}
+    
+    Please tailor the summary to match the user's academic level and background. Adjust the complexity, terminology, and depth accordingly.
+    """
+    
     prompt = f"""
     You are an expert study coach helping a student create focused course notes.
     
+    {user_context_section}
     CONTEXT FROM {pdf_name}:
     {context}
     
@@ -87,6 +98,7 @@ def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, 
         - Numbered lists (“1 - …”) for ordered steps
         - Short, precise sentences
     6. Tone: Academic yet accessible, like notes prepared for quick revision.
+    7. **IMPORTANT**: Adjust the complexity and terminology based on the user's academic level and background provided above.
 
     Avoid using too many "-" at the beginning of the lines.
     

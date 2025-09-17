@@ -9,4 +9,6 @@ pypdf
 tiktoken
 unstructured
 streamlit
+streamlit-authenticator
+pyyaml
 jinja2

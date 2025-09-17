@@ -49,7 +49,7 @@ def _normalize_text(s: str, max_words: int | None = None) -> str:
     return text
 
 
-def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool = True, options: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool = True, options: Dict[str, Any] | None = None, user_context: str = "") -> Dict[str, Any]:
     llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2)
     typeline = "Use a mix of basic and cloze." if allow_cloze else "Use basic only."
     # Incorporate options into guidance (best-effort; engine still validates post hoc)
@@ -94,8 +94,14 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
     # Build the user prompt by concatenating strings to avoid f-string backslash issues
     latex_example = r"$P(A|B)=\frac{P(B|A)P(A)}{P(B)}$"
     
+    # Build user context section
+    user_context_section = ""
+    if user_context:
+        user_context_section = f"USER PROFILE:\n{user_context}\n\nPlease adjust the complexity and terminology of the flashcards to match the user's academic level and background.\n\n"
+    
     # Build the prompt in parts to avoid f-string backslash issues
     user_prompt_parts = [
+        f"{user_context_section}",
         f"Topic hint: {topic or '(auto)'}\n",
         f"Content:\n---\n{context[:8000]}\n---\n",
         f"Create {max(n, int(n * 1.5))} cards. {typeline}\n",
@@ -111,6 +117,7 @@ def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool
         "  Prioritize: (1) the exact Bayes' theorem formula, (2) the multi-category version with a denominator sum, \n",
         "  (3) definitions of numerator/denominator terms, (4) a short worked example using the formula.\n",
         f"- You may include inline LaTeX for formulas using $...$ (e.g., {latex_example}).\n",
+        "- **IMPORTANT**: Adjust the complexity and terminology based on the user's academic level and background provided above.\n",
         "- Output only JSON. No extra text, no markdown, no additional keys."
     ]
     

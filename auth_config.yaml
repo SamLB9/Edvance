@@ -1,0 +1,66 @@
+cookie: &id001
+  expiry_days: 30
+  key: edvance_study_coach_key
+  name: edvance_cookie
+credentials:
+  cookie: *id001
+  usernames:
+    admin:
+      email: admin@edvance.com
+      name: Administrator
+      password: $2b$12$6nUfD.muRyNs3HGCx9SySOtQroa1E0S9X7J0vYyiEPn7.ZNqKIG4G
+    edf:
+      email: cl@gmail.com
+      name: CL
+      password: $2b$12$SIrShSA1.iUXp8v6TIfxAuSPqLhAzAh0dFi77j3iWsjNJNwyZ4xQe
+      school_level: High School
+    lanimal:
+      email: clamaison@gmail.com
+      name: CL
+      password: $2b$12$KUjSzdmU4cfHXSnLkkdvCOqjg18NpzgxkGmsuJ9wfLvPDlty9n6ya
+      school_level: Undergraduate
+    mougly:
+      courses: ANLP, Machine Learning Practical, Computer Vision, Database
+      email: labordebalensam@gmail.com
+      name: Sam Laborde-Balen
+      password: $2b$12$xCrVdAjk8B2ByvxPzPy96eCv5wSaj.C738ylZW/Rj5Rqsiv2Y1zmO
+      school_level: Graduate
+    mougly9:
+      courses: Accelerated Natural Language Understanding, Computer Vision, Machine
+        Learning Practical, Introduction to Database
+      email: labordebalensam@gmail.com
+      name: Sam Laborde-Balen
+      password: $2b$12$y25ZRYBrMb/0Y6t1KuhESecaICkz9ooBYcE.TMfZcn2RTbpwvpQ3y
+      school_level: Graduate
+    samrcs:
+      age: 23
+      courses: Accelerated Natural Language Processing, Computer Vision, Machine Learning
+        Practical, Introduction to database, Perso
+      date_of_birth: '2002-07-05'
+      degree: MSc
+      document_courses:
+        BayesTheorem.pdf: Accelerated Natural Language Processing
+        SamLB_Resume_S25.pdf: Perso
+      email: labordebalensam@gmail.com
+      name: Sam Laborde-Balen
+      password: $2b$12$ebuQ4kPhxAoVayuIT09nzeI8NtGz6jCuN/VvKlC56NBvjrPSnndMi
+      school_level: Postgraduate
+      subject: AI
+    samrcs99:
+      courses: Accelerated Natural Language Understanding, Computer Vision, Machine
+        Learning Practical, Introduction to Database
+      email: slb@tonavenir.net
+      name: Sam Laborde-Balen
+      password: $2b$12$IE0t5s7yDS09qtTb70eMOOOAcraRmvNh7iXuQvwVMXKODegmo3VW6
+      school_level: Graduate
+    samsamrcs:
+      courses: Accelerated Natural Language Understanding, Computer Vision, Machine
+        Learning Practical, Introduction to Database
+      email: slb@gmail.com
+      name: SLB
+      password: $2b$12$vnUOr8DkYGAo0ghAqhVooOyaC2MgThxaDQh6x7jxt7ujZZJJxaqTq
+      school_level: Graduate
+    student:
+      email: student@edvance.com
+      name: Student User
+      password: $2b$12$6nUfD.muRyNs3HGCx9SySOtQroa1E0S9X7J0vYyiEPn7.ZNqKIG4G
