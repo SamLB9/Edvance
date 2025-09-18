@@ -3571,7 +3571,7 @@ def show_login_page(authenticator):
                                 
                                 # Add user to config with extended profile information
                                 add_user(username_signup, email, full_name, password_signup, config, 
-                                        school_level, courses, None, dob, age, None, subject)
+                                        school_level, courses, None, dob, age, subject)
                                 
                                 # Set flag to show toast on login tab and redirect
                                 st.session_state['show_success_toast'] = True  # Flag to show toast on login tab

@@ -34,8 +34,9 @@ credentials:
       school_level: Graduate
     samrcs:
       age: 23
-      courses: Accelerated Natural Language Processing, Computer Vision, Machine Learning
-        Practical, Introduction to database, Perso
+      courses: Financial Accounting, Management Control, Negociating the Best Deal,
+        Capital Markets, Portfolio Management, Financial Reporting & Analysis, Data
+        Analysis, Strategies, Project Management,
       date_of_birth: '2002-07-05'
       degree: MSc
       document_courses:
