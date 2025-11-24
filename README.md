@@ -282,28 +282,6 @@ The application will be available at `http://localhost:8501`
 
 ---
 
-## 🔧 Key Technical Decisions
-
-### Why ChromaDB?
-- **Lightweight**: No external dependencies, embedded database
-- **Fast Retrieval**: Optimized for similarity search
-- **Persistent Storage**: Survives application restarts
-- **Metadata Filtering**: Enables file-specific context retrieval
-
-### Why LangChain?
-- **Abstraction Layer**: Simplifies LLM orchestration
-- **Document Processing**: Built-in chunking and loading utilities
-- **Future-Proof**: Easy to swap LLM providers
-- **Structured Outputs**: Type-safe prompt engineering
-
-### Why Streamlit?
-- **Rapid Development**: Fast iteration for AI applications
-- **Built-in Components**: Charts, file uploads, authentication
-- **State Management**: Handles complex UI state
-- **Deployment Ready**: One-command deployment to cloud
-
----
-
 ## 📊 Performance Optimizations
 
 - **Background Embedding Pre-loading**: Thread-based async initialization
@@ -338,42 +316,6 @@ python -m src.main --topic "Bayes theorem" --n 4 --feedback immediate
 - Modular architecture for maintainability
 - Comprehensive error handling
 - Performance monitoring and optimization
-
----
-
-## 📈 Future Enhancements
-
-- [ ] Multi-language support
-- [ ] Collaborative study groups
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app integration
-- [ ] Real-time collaborative editing
-- [ ] Integration with learning management systems
-
----
-
-## 👤 Author
-
-**Sam Laborde-Balen**  
-AI Engineer | ML Engineer | Full-Stack Developer
-
-- GitHub: [@SamLB9](https://github.com/SamLB9)
-- Email: labordebalensam@gmail.com
-
----
-
-## 📄 License
-
-This project is proprietary and confidential.
-
----
-
-## 🙏 Acknowledgments
-
-- OpenAI for GPT models and embeddings
-- LangChain team for the excellent framework
-- Streamlit for the amazing web framework
-- ChromaDB for efficient vector storage
 
 ---
 
