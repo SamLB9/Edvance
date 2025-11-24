@@ -53,7 +53,7 @@ A production-ready, multi-user educational platform that leverages advanced AI/M
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Streamlit Frontend                       │
-│  (Authentication, UI Components, State Management)          │
+│      (Authentication, UI Components, State Management)      │
 └────────────────────────────┬────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────┐
@@ -75,8 +75,8 @@ A production-ready, multi-user educational platform that leverages advanced AI/M
               └──────────────┼──────────────┘
                              │
               ┌──────────────▼──────────────┐
-              │      ChromaDB Vector Store  │
-              │  (Persistent embeddings)    │
+              │    ChromaDB Vector Store    │
+              │   (Persistent embeddings)   │
               └─────────────────────────────┘
 ```
 
