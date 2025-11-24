@@ -185,37 +185,37 @@ def build_or_load_vectorstore(chunks: List[Document], persist_dir: str):
 
 ```
 Student_Coach_Q-A/
-├── app.py                          # Main Streamlit application (3,900+ lines)
-├── auth_config.yaml                # User authentication configuration
-├── requirements.txt                 # Python dependencies
-├── .env                            # Environment variables (API keys)
+├── app.py                               # Main Streamlit application (3,900+ lines)
+├── auth_config.yaml                     # User authentication configuration
+├── requirements.txt                     # Python dependencies
+├── .env                                 # Environment variables (API keys)
 │
-├── src/                            # Core application modules
-│   ├── config.py                   # Model configuration & settings
-│   ├── ingest.py                   # Document loading & chunking
-│   ├── retriever.py                # Vector store & semantic search
-│   ├── quiz_engine.py              # Adaptive quiz generation
-│   ├── evaluation.py               # Answer grading & feedback
-│   ├── memory.py                   # Performance tracking & analytics
-│   ├── summary_engine.py           # PDF summary orchestration
-│   ├── dynamic_latex_generator.py  # LaTeX document generation
-│   ├── flashcards_engine.py        # Flashcard generation
-│   └── auto_topic.py               # Document topic extraction
+├── src/                                 # Core application modules
+│   ├── config.py                        # Model configuration & settings
+│   ├── ingest.py                        # Document loading & chunking
+│   ├── retriever.py                     # Vector store & semantic search
+│   ├── quiz_engine.py                   # Adaptive quiz generation
+│   ├── evaluation.py                    # Answer grading & feedback
+│   ├── memory.py                        # Performance tracking & analytics
+│   ├── summary_engine.py                # PDF summary orchestration
+│   ├── dynamic_latex_generator.py       # LaTeX document generation
+│   ├── flashcards_engine.py             # Flashcard generation
+│   └── auto_topic.py                    # Document topic extraction
 │
 ├── data/
-│   └── notes/                      # User-uploaded documents (per-user)
-│       ├── {username}/             # Isolated user directories
-│       └── BayesTheorem.pdf        # Global shared document
+│   └── notes/                           # User-uploaded documents (per-user)
+│       ├── {username}/                  # Isolated user directories
+│       └── BayesTheorem.pdf             # Global shared document
 │
-├── vectorstore/                    # ChromaDB persistent storage
-│   └── {user_id}/                  # Per-user vector stores
+├── vectorstore/                         # ChromaDB persistent storage
+│   └── {user_id}/                       # Per-user vector stores
 │
-├── user_data/                      # User-specific data
-│   ├── progress_{username}.json   # Performance tracking
+├── user_data/                           # User-specific data
+│   ├── progress_{username}.json         # Performance tracking
 │   ├── document_topics_{username}.json
 │   └── saved_content_{username}.json
 │
-└── generated_summaries/            # PDF outputs (per-user)
+└── generated_summaries/                 # PDF outputs (per-user)
 ```
 
 ---
