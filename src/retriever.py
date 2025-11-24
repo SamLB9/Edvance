@@ -3,7 +3,7 @@ import os
 import warnings
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain.schema import Document
+from langchain_core.documents import Document
 from .config import EMBEDDING_MODEL
 
 # Suppress deprecation warnings for better performance

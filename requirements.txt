@@ -1,6 +1,7 @@
 python-dotenv
 openai>=1.40.0
 langchain
+langchain-core
 langchain-openai
 langchain-chroma
 langchain_community

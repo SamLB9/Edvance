@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 def load_documents(notes_dir: str) -> List[Document]:
     docs = []
