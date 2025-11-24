@@ -4,17 +4,20 @@
 
 A production-ready, multi-user educational platform that leverages advanced AI/ML techniques to provide adaptive learning experiences through intelligent document analysis, personalized quiz generation, and professional content summarization.
 
+🌐 **[Live Demo](https://edvance-production.up.railway.app/)** | 📚 [Documentation](#-overview) | 🚀 [Quick Start](#-quick-start)
+
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-green.svg)](https://openai.com)
 [![LangChain](https://img.shields.io/badge/LangChain-0.3+-orange.svg)](https://langchain.com)
 [![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector%20Store-purple.svg)](https://www.trychroma.com/)
+[![Railway](https://img.shields.io/badge/Deployed%20on-Railway-black.svg)](https://railway.app)
 
 ---
 
 ## 🚀 Overview
 
-**Edvance Study Coach** is a full-stack AI application that demonstrates expertise in:
+**Edvance Study Coach** is a full-stack AI application deployed on [Railway](https://edvance-production.up.railway.app/) that demonstrates expertise in:
 
 - **RAG Architecture**: Advanced retrieval-augmented generation with semantic search
 - **Vector Embeddings**: ChromaDB-based vector store for efficient similarity search
