@@ -7,6 +7,7 @@ import base64
 import threading
 import warnings
 from typing import List, Dict, Any
+from datetime import datetime, date, timedelta
 
 # Suppress warnings for better performance
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -19,6 +20,10 @@ from src.evaluation import grade_answer
 from src.memory import JsonMemory
 from src.flashcards_engine import generate_flashcards, to_tsv, to_csv_quizlet, to_markdown
 from src.performance_config import PDF_PREVIEW_CACHE_LIMIT, DISABLE_DEBUG_OUTPUT
+try:
+    from streamlit_calendar import calendar as st_calendar
+except Exception:
+    st_calendar = None
 from auth_config import get_authenticator, DEFAULT_CREDENTIALS
 
 NOTES_DIR = Path("data/notes")
@@ -30,6 +35,24 @@ def get_user_notes_dir(username: str) -> Path:
     user_dir = NOTES_DIR / username
     user_dir.mkdir(parents=True, exist_ok=True)
     return user_dir
+
+def get_file_path(filename: str, username: str = None) -> Path:
+    """Get file path, always using global directory for BayesTheorem.pdf, user directory for other files"""
+    # BayesTheorem.pdf should always be accessible from global directory for all users
+    if filename == "BayesTheorem.pdf":
+        global_path = NOTES_DIR / filename
+        if global_path.exists():
+            return global_path
+        # If global doesn't exist, fall through to user directory check
+    
+    # For other files, check user directory first
+    if username:
+        user_path = get_user_notes_dir(username) / filename
+        if user_path.exists():
+            return user_path
+    
+    # Fallback to global directory
+    return NOTES_DIR / filename
 
 def get_user_progress_path(username: str) -> Path:
     """Get user-specific progress file path"""
@@ -305,11 +328,13 @@ def save_document_topics(topics: Dict[str, str], username: str = None) -> None:
         print(f"[AUTO_TOPIC] Error saving topics: {e}")
 
 
-def cleanup_orphaned_topics() -> None:
-    """Remove topics for files that no longer exist"""
+def cleanup_orphaned_topics(username: str = None) -> None:
+    """Remove topics for files that no longer exist - user-specific"""
     try:
-        # Get list of current files
-        notes = list_notes()
+        # Get list of current files for this user
+        if not username:
+            username = st.session_state.get('username', '')
+        notes = list_notes(username) if username else []
         current_files = {note["file"] for note in notes}
         
         # Load current topics
@@ -408,10 +433,16 @@ def get_document_course(filename: str) -> str:
     return st.session_state["document_courses"].get(filename, "No Course Assigned")
 
 
-def generate_and_cache_document_topics(docs: List[Any]) -> None:
-    """Generate and cache auto-topics for uploaded documents to avoid repeated LLM calls"""
-    # Load existing topics from persistent storage
-    persistent_topics = load_document_topics()
+def generate_and_cache_document_topics(docs: List[Any], username: str = None) -> None:
+    """Generate and cache auto-topics for uploaded documents to avoid repeated LLM calls - user-specific"""
+    if not username:
+        username = st.session_state.get('username', '')
+    
+    if not username:
+        return  # Can't generate topics without a user
+    
+    # Load existing topics from persistent storage for this user
+    persistent_topics = load_document_topics(username)
     
     # Initialize session state with persistent topics
     if "document_topics" not in st.session_state:
@@ -420,8 +451,8 @@ def generate_and_cache_document_topics(docs: List[Any]) -> None:
         # Merge persistent topics with session state
         st.session_state["document_topics"].update(persistent_topics)
     
-    # Get list of current files
-    notes = list_notes()
+    # Get list of current files for this user
+    notes = list_notes(username)
     current_files = {note["file"] for note in notes}
     
     # Check which files need topic generation
@@ -444,10 +475,13 @@ def generate_and_cache_document_topics(docs: List[Any]) -> None:
         if "vs" not in st.session_state:
             ensure_vectorstore_loaded()
         
+        # Get user-specific notes directory
+        user_notes_dir = get_user_notes_dir(username)
+        
         for file_path in files_needing_topics:
             try:
-                # Get context for this specific file
-                full_path = str((NOTES_DIR / file_path).resolve())
+                # Get context for this specific file - use user-specific directory
+                full_path = str((user_notes_dir / file_path).resolve())
                 context = retrieve_context(st.session_state.vs, file_path, k=8, source_path=full_path)
                 
                 if context.strip():
@@ -485,6 +519,8 @@ def is_any_generation_in_progress() -> bool:
         st.session_state.get("summary_generating", False) or
         st.session_state.get("summary_pending") is not None or
         st.session_state.get("fc_pending") is not None or
+        st.session_state.get("schedule_generating", False) or
+        st.session_state.get("schedule_pending") is not None or
         st.session_state.get("busy", False)
     )
 
@@ -507,6 +543,11 @@ def show_generation_warning_if_needed(current_tab_type: str) -> None:
             )
         elif current_tab_type == "flashcards":
             is_current_tab_generating = st.session_state.get("fc_pending") is not None
+        elif current_tab_type == "schedule":
+            is_current_tab_generating = (
+                st.session_state.get("schedule_generating", False) or
+                st.session_state.get("schedule_pending") is not None
+            )
         
         # Show warning only if current tab is not generating
         if not is_current_tab_generating:
@@ -552,7 +593,25 @@ def list_notes(username: str = None) -> List[Dict[str, Any]]:
     """List notes for a specific user or all users (for backward compatibility)"""
     if username:
         notes_dir = get_user_notes_dir(username)
-        return _list_notes_cached(notes_dir)
+        user_notes = _list_notes_cached(notes_dir)
+        
+        # Filter out BayesTheorem.pdf from user directory (it should always come from global)
+        user_notes = [note for note in user_notes if note["file"] != "BayesTheorem.pdf"]
+        
+        # Always include BayesTheorem.pdf from global directory for all users
+        global_bayes_path = NOTES_DIR / "BayesTheorem.pdf"
+        if global_bayes_path.exists():
+            try:
+                stat = global_bayes_path.stat()
+                user_notes.append({
+                    "file": "BayesTheorem.pdf",
+                    "size_kb": int(round(stat.st_size / 1024)),
+                    "modified": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime)),
+                })
+            except Exception:
+                pass  # If we can't stat the file, skip it
+        
+        return user_notes
     else:
         # Backward compatibility - list from global directory
         ensure_notes_dir()
@@ -683,7 +742,16 @@ def _quiz_debug(message: str) -> None:
 
 def start_quiz(topic: str, n: int, avoid_mode: str, feedback_mode: str, question_mix_counts: dict | None = None, reference_file: str | None = None) -> None:
     ensure_vectorstore_loaded()
-    memory = JsonMemory(str(PROGRESS_PATH))
+    # Use user-specific progress path
+    current_username = st.session_state.get('username', '')
+    if not current_username:
+        # If no user is logged in, create a temporary memory instance that won't be used for logging
+        # The quiz can still run, but progress won't be saved
+        memory = JsonMemory(str(PROGRESS_PATH))
+        # We'll skip actual logging in grade_and_log and finish_quiz if no user
+    else:
+        user_progress_path = get_user_progress_path(current_username)
+        memory = JsonMemory(str(user_progress_path))
 
     # Retrieve context (filter to selected reference file if provided)
     _quiz_debug(f"start_quiz: n={n}, avoid_mode={avoid_mode}, feedback_mode={feedback_mode}")
@@ -851,14 +919,18 @@ def render_feedback(i: int, q: Dict[str, Any], result: Dict[str, Any], took_ms: 
 
 def grade_and_log(i: int, q: Dict[str, Any], student_answer: str, took_ms: int) -> Dict[str, Any]:
     result = grade_answer(q['prompt'], q['answer'], student_answer)
-    memory = JsonMemory(str(PROGRESS_PATH))
-    memory.log_attempt(
-        topic=st.session_state.topic,
-        prompt=q['prompt'],
-        student_answer=student_answer,
-        correct=bool(result.get('correct')),
-        response_ms=took_ms,
-    )
+    # Use user-specific progress path
+    current_username = st.session_state.get('username', '')
+    if current_username:
+        user_progress_path = get_user_progress_path(current_username)
+        memory = JsonMemory(str(user_progress_path))
+        memory.log_attempt(
+            topic=st.session_state.topic,
+            prompt=q['prompt'],
+            student_answer=student_answer,
+            correct=bool(result.get('correct')),
+            response_ms=took_ms,
+        )
     return result
 
 
@@ -877,7 +949,9 @@ def quiz_tab():
     quiz_started = st.session_state.get("quiz_started", False)
 
     # Optional reference PDF/Notes preview (for context while answering)
-    notes = list_notes()
+    # Get user-specific notes
+    current_username = st.session_state.get('username', '')
+    notes = list_notes(current_username) if current_username else []
     if notes:
         # Load user courses for filtering
         user_courses = []
@@ -939,7 +1013,9 @@ def quiz_tab():
             key="quiz_reference_file",
             help="This preview is for reference only and does not affect the quiz generation."
         )
-        ref_path = NOTES_DIR / reference_file
+        # Use user-specific notes directory, with fallback to global for BayesTheorem.pdf
+        current_username = st.session_state.get('username', '')
+        ref_path = get_file_path(reference_file, current_username)
         with st.expander("📄 PDF preview", expanded=False):
             try:
                 if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
@@ -1157,12 +1233,14 @@ def quiz_tab():
             # Store difficulty for engine
             st.session_state["difficulty"] = pending.get("difficulty")
             _quiz_debug(f"pending_start: settings n={pending.get('n')}, avoid={pending.get('avoid_mode')}, feedback={pending.get('feedback_mode')}")
-            # Resolve absolute path of selected reference file if available
+            # Resolve absolute path of selected reference file if available - user-specific
             ref_abs = None
             try:
                 sel_ref = st.session_state.get("quiz_reference_file")
+                current_username = st.session_state.get('username', '')
                 if sel_ref:
-                    ref_abs = str((NOTES_DIR / sel_ref).resolve())
+                    ref_path = get_file_path(sel_ref, current_username)
+                    ref_abs = str(ref_path.resolve())
             except Exception:
                 ref_abs = None
             _quiz_debug(f"pending_start: resolved reference_file={(ref_abs or 'None')}")
@@ -1294,22 +1372,25 @@ def finish_quiz() -> None:
     else:
         st.info("Good progress: you’re ready for more challenging, reasoning-based questions.")
 
-    # Save session
-    memory = JsonMemory(str(PROGRESS_PATH))
-    try:
-        memory.log_session(
-            topic=st.session_state.topic,
-            score=percent,
-            details={
-                "raw": f"{st.session_state.correct_count}/{total}",
-                "avoid_mode": st.session_state.avoid_mode,
-                "difficulty": st.session_state.difficulty,
-                "feedback_mode": st.session_state.feedback_mode,
-            },
-        )
-        st.caption("Progress saved to progress.json")
-    except Exception as e:
-        st.warning(f"Could not save progress: {e}")
+    # Save session - user-specific
+    current_username = st.session_state.get('username', '')
+    if current_username:
+        user_progress_path = get_user_progress_path(current_username)
+        memory = JsonMemory(str(user_progress_path))
+        try:
+            memory.log_session(
+                topic=st.session_state.topic,
+                score=percent,
+                details={
+                    "raw": f"{st.session_state.correct_count}/{total}",
+                    "avoid_mode": st.session_state.avoid_mode,
+                    "difficulty": st.session_state.difficulty,
+                    "feedback_mode": st.session_state.feedback_mode,
+                },
+            )
+            st.caption(f"Progress saved to {user_progress_path.name}")
+        except Exception as e:
+            st.warning(f"Could not save progress: {e}")
 
 
 def upload_tab():
@@ -1319,6 +1400,15 @@ def upload_tab():
     # Only clear summary_pending if summary is not currently generating
     if not st.session_state.get("summary_generating", False):
         st.session_state.pop("summary_pending", None)
+    
+    # Ensure document_topics is initialized (fallback if not set)
+    if "document_topics" not in st.session_state:
+        current_username = st.session_state.get('username', '')
+        try:
+            persistent_topics = load_document_topics(current_username)
+            st.session_state["document_topics"] = persistent_topics.copy() if persistent_topics else {}
+        except Exception:
+            st.session_state["document_topics"] = {}
     
     # Load user courses for assignment
     user_courses = []
@@ -1368,9 +1458,9 @@ def upload_tab():
                     st.session_state.vs = build_or_load_vectorstore(chunks)
                     
                     # Clean up orphaned topics and generate new ones
-                    cleanup_orphaned_topics()
+                    cleanup_orphaned_topics(current_username)
                     with st.spinner("Generating document topics..."):
-                        generate_and_cache_document_topics(docs)
+                        generate_and_cache_document_topics(docs, current_username)
                     
                 st.session_state.last_upload_sig = sig
                 st.session_state.vs_built_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -1445,9 +1535,8 @@ def upload_tab():
                     rel = n.get("file", "")
                     size_kb = n.get("size_kb", "?")
                     modified = n.get("modified", "")
-                    # Use user-specific directory for file path
-                    user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
-                    path = user_notes_dir / rel
+                    # Use user-specific directory for file path, with fallback to global for BayesTheorem.pdf
+                    path = get_file_path(rel, current_username)
                     topic = document_topics.get(rel, "General Document")
                     
                     with st.container(border=True):
@@ -1530,7 +1619,8 @@ def upload_tab():
                                     from src.auto_topic import one_liner_from_context
                                     from src.retriever import retrieve_context
                                     
-                                    full_path = str((user_notes_dir / rel).resolve())
+                                    path = get_file_path(rel, current_username)
+                                    full_path = str(path.resolve())
                                     context = retrieve_context(st.session_state.vs, rel, k=8, source_path=full_path)
                                     
                                     if context.strip():
@@ -1733,12 +1823,32 @@ def upload_tab():
 
 
 @st.cache_data(ttl=60)  # Cache for 1 minute
-def _get_progress_data():
-    """Cached progress data loading"""
-    memory = JsonMemory(str(PROGRESS_PATH))
+def _get_progress_data(username: str = None):
+    """Cached progress data loading - user-specific"""
+    if not username:
+        username = st.session_state.get('username', '')
+    
+    if not username:
+        # Return empty data if no username
+        return {"sessions": [], "attempts": [], "questions": {}}
+    
+    # Use user-specific progress path
+    user_progress_path = get_user_progress_path(username)
+    memory = JsonMemory(str(user_progress_path))
     try:
         data = memory._read()
+        # Ensure structure is correct
+        if not isinstance(data, dict):
+            data = {"sessions": [], "attempts": [], "questions": {}}
+        # Ensure required keys exist
+        if "sessions" not in data:
+            data["sessions"] = []
+        if "attempts" not in data:
+            data["attempts"] = []
+        if "questions" not in data:
+            data["questions"] = {}
     except Exception:
+        # Return empty data for new users
         data = {"sessions": [], "attempts": [], "questions": {}}
     return data
 
@@ -1979,11 +2089,17 @@ def saved_decks_tab():
 
 
 def quiz_progress_tab():
-    """Displays quiz performance analytics"""
+    """Displays quiz performance analytics - user-specific"""
     st.write("### 📈 Quiz Progress")
     st.write("View your quiz performance and analytics.")
     
-    data = _get_progress_data()
+    # Get user-specific progress data
+    current_username = st.session_state.get('username', '')
+    if not current_username:
+        st.info("Please log in to view your quiz progress.")
+        return
+    
+    data = _get_progress_data(current_username)
     sessions = data.get("sessions", [])
 
     if sessions:
@@ -2114,11 +2230,17 @@ def user_management_tab():
         st.error(f"Error loading user management: {str(e)}")
 
 def frequently_missed_tab():
-    """Shows problematic questions for review"""
+    """Shows problematic questions for review - user-specific"""
     st.write("### ❌ Frequently Missed")
     st.write("Review questions you've struggled with to improve your understanding.")
     
-    data = _get_progress_data()
+    # Get user-specific progress data
+    current_username = st.session_state.get('username', '')
+    if not current_username:
+        st.info("Please log in to view your frequently missed questions.")
+        return
+    
+    data = _get_progress_data(current_username)
     sessions = data.get("sessions", [])
     
     # Get all topics from sessions
@@ -2127,7 +2249,9 @@ def frequently_missed_tab():
     if topics:
         topic = st.selectbox("Select Topic", options=topics, index=0)
         if topic:
-            memory = JsonMemory(str(PROGRESS_PATH))
+            # Use user-specific progress path
+            user_progress_path = get_user_progress_path(current_username)
+            memory = JsonMemory(str(user_progress_path))
             missed = memory.get_frequently_missed(topic, min_attempts=1, limit=10)
             if missed:
                 st.write(f"**Frequently missed questions for '{topic}':**")
@@ -2166,7 +2290,9 @@ def summary_tab():
     ensure_vectorstore_loaded()
     
     # Get list of available notes
-    notes = list_notes()
+    # Get user-specific notes
+    current_username = st.session_state.get('username', '')
+    notes = list_notes(current_username) if current_username else []
     if not notes:
         st.warning("No notes found. Please upload some notes first in the Upload Courses tab.")
         return
@@ -2226,8 +2352,9 @@ def summary_tab():
         file_names,
         help="Select a file to generate a summary from"
     )
-    # Preview the selected file (same preview feature as in Quiz)
-    ref_path = NOTES_DIR / selected_file
+    # Preview the selected file (same preview feature as in Quiz) - user-specific
+    current_username = st.session_state.get('username', '')
+    ref_path = get_file_path(selected_file, current_username)
     with st.expander("📄 PDF preview", expanded=False):
         try:
             if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
@@ -2275,21 +2402,25 @@ def summary_tab():
     # Initialize generate_clicked variable
     generate_clicked = False
     
+    # Determine if we have summary content
+    has_summary_content = bool(
+        st.session_state.get("last_summary_result") or 
+        st.session_state.get("last_pdf_bytes") or
+        st.session_state.get("last_pdf_base64") or
+        st.session_state.get("last_pdf_filename")
+    )
+
     # Actions row: Generate and Stop & Reset side-by-side (uniform widths)
     # Only show these buttons when not generating
     if not is_summary_generating and not has_summary_pending:
         action_cols = st.columns([1, 1, 6])
         with action_cols[0]:
-                # Disable if no file selected, another tab is generating, OR if summary content is already displayed
-                has_summary_content = bool(
-                    st.session_state.get("last_summary_result") or 
-                    st.session_state.get("last_pdf_bytes") or
-                    st.session_state.get("last_pdf_base64") or
-                    st.session_state.get("last_pdf_filename")
-                )
-                generate_clicked = st.button("Generate Summary", disabled=not selected_file or is_any_generation_in_progress() or has_summary_content)
+                btn_label = "🔄 Regenerate Summary" if has_summary_content else "Generate Summary"
+                # Enable generation even if content exists (allows regeneration)
+                generate_clicked = st.button(btn_label, disabled=not selected_file or is_any_generation_in_progress())
         
         with action_cols[1]:
+            # Existing Stop & Reset button (kept for compatibility/redundancy)
             has_summary = bool(st.session_state.get("last_summary_result")) or bool(st.session_state.get("last_pdf_bytes"))
             if st.button("⏹️ Stop & Reset", help="Clear current preview", disabled=not has_summary):
                 # Clear only the current preview/result; keep saved PDFs intact
@@ -2302,10 +2433,12 @@ def summary_tab():
                     st.session_state.pop(k, None)
                 st.rerun()
     
-    # Show generation status if summary is generating
+    # Placeholder for Cancel/Reset buttons
+    cancel_ph = st.empty()
+    
+    # Case 1: Show Cancel if generating
     if is_summary_generating or has_summary_pending:
-        st.info("🔄 Generating summary... Please wait.")
-        if st.button("⏹️ Cancel Generation", help="Cancel current generation", key="cancel_generation"):
+        if cancel_ph.button("⏹️ Cancel Generation", help="Cancel current generation", key="cancel_generation"):
             # Clear generation state and results
             for k in [
                 "summary_generating",
@@ -2317,6 +2450,18 @@ def summary_tab():
             ]:
                 st.session_state.pop(k, None)
             st.rerun()
+            
+    # Case 2: Show Reset if content exists (and not generating)
+    elif has_summary_content:
+        if cancel_ph.button("🔄 Reset / New Summary", key="reset_summary_bottom", help="Reset page to generate a new summary"):
+             for k in [
+                "last_summary_result",
+                "last_pdf_bytes",
+                "last_pdf_base64",
+                "last_pdf_filename",
+            ]:
+                st.session_state.pop(k, None)
+             st.rerun()
 
     # Generate summary flow
     if not is_summary_generating and not has_summary_pending:
@@ -2334,15 +2479,24 @@ def summary_tab():
     if pending_summary:
         with st.spinner("Generating summary..."):
             try:
+                # Get the selected file and its full path for filtering
+                selected_file = pending_summary.get("selected_file", "")
+                
+                # Get full path to the selected file for source filtering
+                ref_path = get_file_path(selected_file, current_username)
+                ref_abs = str(ref_path.resolve())
+
                 # Retrieve context using focus if provided, otherwise use the filename as a broad query
+                # IMPORTANT: Pass source_path to filter retrieval to ONLY the selected file
                 _focus = pending_summary.get("focus", "").strip()
-                query = _focus if _focus else pending_summary.get("selected_file", "")
-                context = retrieve_context(st.session_state.vs, query, k=8)
+                query = _focus if _focus else selected_file
+                context = retrieve_context(st.session_state.vs, query, k=8, source_path=ref_abs)
                 
                 if not context.strip():
                     st.warning("No relevant content found for this focus area. Try a different topic or check if the notes contain relevant information.")
                     st.session_state["summary_generating"] = False
                     st.session_state.pop("summary_pending", None)
+                    cancel_ph.empty()
                     # Keep message visible without immediate rerun
                     return
                 
@@ -2399,9 +2553,19 @@ def summary_tab():
                 ph.empty()
                 st.session_state["summary_generating"] = False
                 st.session_state.pop("summary_pending", None)
+                cancel_ph.empty()
                 return
         st.session_state["summary_generating"] = False
         st.session_state.pop("summary_pending", None)
+        if cancel_ph.button("🔄 Reset / New Summary", key="reset_summary_bottom", help="Reset page to generate a new summary"):
+             for k in [
+                "last_summary_result",
+                "last_pdf_bytes",
+                "last_pdf_base64",
+                "last_pdf_filename",
+            ]:
+                st.session_state.pop(k, None)
+             st.rerun()
         # Don't call st.rerun() here to avoid interfering with navigation
     
     # Persistent PDF preview (survives widget changes)
@@ -2654,7 +2818,9 @@ def flashcards_tab():
 
     # Ensure vector store is available
     ensure_vectorstore_loaded()
-    notes = list_notes()
+    # Get user-specific notes
+    current_username = st.session_state.get('username', '')
+    notes = list_notes(current_username) if current_username else []
     if not notes:
         st.warning("No notes found. Upload a PDF first.")
         return
@@ -2726,8 +2892,9 @@ def flashcards_tab():
         help="Select a file to generate flashcards from"
     )
     
-    # Preview the selected file (same preview feature as in Quiz and Summary)
-    ref_path = NOTES_DIR / ref
+    # Preview the selected file (same preview feature as in Quiz and Summary) - user-specific
+    current_username = st.session_state.get('username', '')
+    ref_path = get_file_path(ref, current_username)
     with st.expander("📄 PDF preview", expanded=False):
         try:
             if ref_path.suffix.lower() == ".pdf" and ref_path.exists():
@@ -2939,7 +3106,10 @@ def flashcards_tab():
         with st.spinner("Generating cards..."):
             try:
                 ref_name = pending_fc.get("ref") or st.session_state.get("fc_ref")
-                ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
+                # Use user-specific notes directory, with fallback to global for BayesTheorem.pdf
+                current_username = st.session_state.get('username', '')
+                ref_path = get_file_path(str(ref_name), current_username)
+                ref_abs = str(ref_path.resolve())
                 ctx = retrieve_context(st.session_state.vs, pending_fc.get("topic", ""), k=10, source_path=ref_abs)
             except Exception as e:
                 st.warning(f"Could not retrieve content: {e}")
@@ -3013,7 +3183,10 @@ def flashcards_tab():
                             deck_name = cached_topic
                         else:
                             # Fallback to context-based inference
-                            ref_abs = str((NOTES_DIR / str(ref_name)).resolve())
+                            # Use user-specific notes directory
+                            current_username = st.session_state.get('username', '')
+                            ref_path = get_file_path(str(ref_name), current_username)
+                            ref_abs = str(ref_path.resolve())
                             topic_hint = (st.session_state.get("fc_topic", "").strip() or st.session_state.get("fc_pseudo_topic", "").strip())
                             ctx = retrieve_context(st.session_state.vs, topic_hint, k=5, source_path=ref_abs)
                             try:
@@ -3284,7 +3457,6 @@ def account_tab():
         if 'age' in user_data:
             st.info(f"**Age:** {user_data.get('age', 'Not set')}")
         if 'date_of_birth' in user_data:
-            from datetime import datetime
             try:
                 dob = datetime.fromisoformat(user_data['date_of_birth']).date()
                 st.info(f"**Date of Birth:** {dob.strftime('%B %d, %Y')}")
@@ -3387,7 +3559,6 @@ def account_tab():
 
 def show_login_page(authenticator):
     """Display the login page with sign up functionality"""
-    from datetime import date
     st.markdown(
         """
         <div style="text-align: center; padding: 2rem;">
@@ -3628,12 +3799,21 @@ def main():
     _render_brand_header()
 
     # Persistent navigation to prevent tab reset on rerun
+    # Initialize nav state if not set (first login)
+    if "nav" not in st.session_state:
+        st.session_state["nav"] = "Upload Courses"
+    
     default_nav = st.session_state.get("nav", "Upload Courses")
     # Check if user is admin to show User Management tab
     current_username = st.session_state.get('username', '')
     nav_options = ["Upload Courses", "Summary", "Flash Cards", "Quiz", "Account"]
     if current_username == 'admin':
         nav_options.append("User Management")
+    
+    # Ensure default_nav is valid
+    if default_nav not in nav_options:
+        default_nav = "Upload Courses"
+        st.session_state["nav"] = "Upload Courses"
     
     selected_nav = st.radio(
         "Navigation",
@@ -3648,13 +3828,25 @@ def main():
     current_username = st.session_state.get('username', '')
     
     # Migrate existing documents to user-specific storage (one-time migration)
+    # Do this in background to avoid blocking initial render
     if current_username and not st.session_state.get(f"migrated_{current_username}", False):
-        migrate_existing_documents_to_user(current_username)
+        def migrate_docs_background():
+            try:
+                migrate_existing_documents_to_user(current_username)
+            except Exception:
+                pass
+        threading.Thread(target=migrate_docs_background, daemon=True).start()
         st.session_state[f"migrated_{current_username}"] = True
     
     # Migrate existing user data files to user_data folder (one-time migration)
+    # Do this in background to avoid blocking initial render
     if current_username and not st.session_state.get(f"migrated_data_files_{current_username}", False):
-        migrate_user_data_files_to_folder(current_username)
+        def migrate_data_background():
+            try:
+                migrate_user_data_files_to_folder(current_username)
+            except Exception:
+                pass
+        threading.Thread(target=migrate_data_background, daemon=True).start()
         st.session_state[f"migrated_data_files_{current_username}"] = True
     
     # Initialize state only when needed (lazy initialization)
@@ -3663,15 +3855,35 @@ def main():
         ensure_vectorstore_loaded()
         # Load topics from persistent storage and generate missing ones
         if "document_topics" not in st.session_state:
-            user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
-            docs = load_documents(str(user_notes_dir))
-            generate_and_cache_document_topics(docs)
+            try:
+                user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
+                docs = load_documents(str(user_notes_dir))
+                current_username = st.session_state.get('username', '')
+                generate_and_cache_document_topics(docs, current_username)
+            except Exception as e:
+                # Initialize with empty dict if loading fails, tab will still render
+                st.session_state["document_topics"] = {}
     elif selected_nav == "Upload Courses":
-        # Load topics from persistent storage and generate missing ones
+        # Load topics from persistent storage immediately (fast operation)
+        # Initialize with persistent topics so tab can render immediately
         if "document_topics" not in st.session_state:
-            user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
-            docs = load_documents(str(user_notes_dir))
-            generate_and_cache_document_topics(docs)
+            try:
+                persistent_topics = load_document_topics(current_username)
+                st.session_state["document_topics"] = persistent_topics.copy() if persistent_topics else {}
+            except Exception:
+                st.session_state["document_topics"] = {}
+        
+        # Mark that we need to generate topics, but do it after render
+        # This flag will be checked after the tab renders
+        if not st.session_state.get("topics_generation_checked", False):
+            st.session_state["topics_generation_checked"] = True
+            # Set pending flag to trigger generation after render
+            notes = list_notes(current_username) if current_username else []
+            if notes:
+                # Check if any files need topics
+                files_needing_topics = [n["file"] for n in notes if n["file"] not in st.session_state.get("document_topics", {})]
+                if files_needing_topics:
+                    st.session_state["topics_generation_pending"] = True
 
     if selected_nav == "Upload Courses":
         try:
@@ -3679,6 +3891,29 @@ def main():
         except Exception as e:
             st.error(f"Error loading Upload Courses tab: {e}")
             st.write("Please try refreshing the page or contact support if the issue persists.")
+        
+        # Process pending topic generation AFTER tab has rendered (non-blocking)
+        # This happens after the UI is displayed
+        if st.session_state.get("topics_generation_pending", False):
+            current_username = st.session_state.get('username', '')
+            try:
+                # Use a background thread to generate topics without blocking UI
+                def generate_topics_background():
+                    try:
+                        user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
+                        docs = load_documents(str(user_notes_dir))
+                        if docs:
+                            generate_and_cache_document_topics(docs, current_username)
+                    except Exception:
+                        pass  # Fail silently, topics will be generated on next upload
+                
+                # Start background thread - this won't block the UI
+                threading.Thread(target=generate_topics_background, daemon=True).start()
+                
+                # Clear the pending flag so we don't keep spawning threads
+                st.session_state["topics_generation_pending"] = False
+            except Exception:
+                st.session_state["topics_generation_pending"] = False
     elif selected_nav == "Quiz":
         quiz_tab()
     elif selected_nav == "Summary":

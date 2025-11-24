@@ -12,3 +12,4 @@ streamlit
 streamlit-authenticator
 pyyaml
 jinja2
+streamlit-calendar

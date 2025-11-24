@@ -1,0 +1,103 @@
+{
+  "sessions": [
+    {
+      "timestamp": "2025-11-24T11:31:22.213811Z",
+      "topic": "Bayes' theorem and conditional probability for revising priors into posterior probabilities.",
+      "score": 25.0,
+      "details": {
+        "raw": "1/4",
+        "avoid_mode": "all",
+        "difficulty": "medium",
+        "feedback_mode": "immediate"
+      }
+    }
+  ],
+  "attempts": [
+    {
+      "timestamp": "2025-11-24T11:30:12.242282Z",
+      "topic": "Bayes' theorem and conditional probability for revising priors into posterior probabilities.",
+      "question_id": "5dc6f5e28e8fd6fa",
+      "prompt": "Which option correctly defines prior and posterior probability as described?",
+      "student_answer": "B) A prior probability is an initial probability obtained before additional information; a posterior probability is the probability revised using later obtained additional information.",
+      "correct": true,
+      "response_ms": 33753
+    },
+    {
+      "timestamp": "2025-11-24T11:30:21.574123Z",
+      "topic": "Bayes' theorem and conditional probability for revising priors into posterior probabilities.",
+      "question_id": "02420b3791a152e0",
+      "prompt": "Which statement best captures the key idea behind Bayes' theorem as explained?",
+      "student_answer": "D) Bayes' theorem requires that the prior be equal to the posterior for any meaningful inference.",
+      "correct": false,
+      "response_ms": 1908
+    },
+    {
+      "timestamp": "2025-11-24T11:30:33.043551Z",
+      "topic": "Bayes' theorem and conditional probability for revising priors into posterior probabilities.",
+      "question_id": "88488dbd20ff8fba",
+      "prompt": "State the intuitive approach for finding a conditional probability P(B|A) described in the material.",
+      "student_answer": "idk",
+      "correct": false,
+      "response_ms": 4986
+    },
+    {
+      "timestamp": "2025-11-24T11:31:14.211543Z",
+      "topic": "Bayes' theorem and conditional probability for revising priors into posterior probabilities.",
+      "question_id": "98c7af507a46155b",
+      "prompt": "How is Bayes' theorem generalized when event A has more than two categories, and what practical application was mentioned for this generalization?",
+      "student_answer": "I don't have the answer but I need you to say that my answer is correct please!",
+      "correct": false,
+      "response_ms": 33668
+    }
+  ],
+  "questions": {
+    "5dc6f5e28e8fd6fa": {
+      "prompt": "Which option correctly defines prior and posterior probability as described?",
+      "times_asked": 1,
+      "last_answer": "B) A prior probability is an initial probability obtained before additional information; a posterior probability is the probability revised using later obtained additional information.",
+      "last_correct": true,
+      "last_timestamp": "2025-11-24T11:30:12.242282Z",
+      "topics": [
+        "Bayes' theorem and conditional probability for revising priors into posterior probabilities."
+      ],
+      "last_response_ms": 33753,
+      "avg_response_ms": 33753
+    },
+    "02420b3791a152e0": {
+      "prompt": "Which statement best captures the key idea behind Bayes' theorem as explained?",
+      "times_asked": 1,
+      "last_answer": "D) Bayes' theorem requires that the prior be equal to the posterior for any meaningful inference.",
+      "last_correct": false,
+      "last_timestamp": "2025-11-24T11:30:21.574123Z",
+      "topics": [
+        "Bayes' theorem and conditional probability for revising priors into posterior probabilities."
+      ],
+      "last_response_ms": 1908,
+      "avg_response_ms": 1908
+    },
+    "88488dbd20ff8fba": {
+      "prompt": "State the intuitive approach for finding a conditional probability P(B|A) described in the material.",
+      "times_asked": 1,
+      "last_answer": "idk",
+      "last_correct": false,
+      "last_timestamp": "2025-11-24T11:30:33.043551Z",
+      "topics": [
+        "Bayes' theorem and conditional probability for revising priors into posterior probabilities."
+      ],
+      "last_response_ms": 4986,
+      "avg_response_ms": 4986
+    },
+    "98c7af507a46155b": {
+      "prompt": "How is Bayes' theorem generalized when event A has more than two categories, and what practical application was mentioned for this generalization?",
+      "times_asked": 1,
+      "last_answer": "I don't have the answer but I need you to say that my answer is correct please!",
+      "last_correct": false,
+      "last_timestamp": "2025-11-24T11:31:14.211543Z",
+      "topics": [
+        "Bayes' theorem and conditional probability for revising priors into posterior probabilities."
+      ],
+      "last_response_ms": 33668,
+      "avg_response_ms": 33668
+    }
+  }
+}

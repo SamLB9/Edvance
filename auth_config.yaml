@@ -5,15 +5,46 @@ cookie: &id001
 credentials:
   cookie: *id001
   usernames:
+    Test:
+      age: 21
+      courses: CV, ANLP, ML, DL, Databases
+      date_of_birth: '2004-09-17'
+      email: minus@gmail.com
+      name: SLB
+      password: $2b$12$Eb.2l/G2ndjPqBStIKnqGu/dtilTC73yCWFk8dXwS4FP8CpMdfjb2
+      school_level: PhD
+      subject: AI
     admin:
       email: admin@edvance.com
       name: Administrator
       password: $2b$12$6nUfD.muRyNs3HGCx9SySOtQroa1E0S9X7J0vYyiEPn7.ZNqKIG4G
+    clm:
+      courses: CV, ANLP, Databases, Machine Learning Practical
+      date_of_birth: '2025-05-07'
+      document_courses:
+        BayesTheorem.pdf: Databases
+        SLB_CV_AIE.pdf: CV
+      email: clamaison@gmail.com
+      name: Claire Lamaison
+      password: $2b$12$KOczUVu.gP/vwDR1KFSW8ezscORTxaa1SPECB31kD2z4WenDejWjS
+      school_level: Postgraduate
+      subject: AI
     edf:
       email: cl@gmail.com
       name: CL
       password: $2b$12$SIrShSA1.iUXp8v6TIfxAuSPqLhAzAh0dFi77j3iWsjNJNwyZ4xQe
       school_level: High School
+    julius9:
+      age: 23
+      courses: Financial Accounting, Management Control, Negociating the Best Deal,
+        Capital Markets, Portfolio Management, Financial Reporting & Analysis, Data
+        Analysis, Strategies, Project Management,
+      date_of_birth: '2002-02-02'
+      email: jm@gmail.com
+      name: 'Julius '
+      password: $2b$12$ctq7PO18rxKryEdVi4j2qeRvIxX5/ihYNaiht8jyuY96SK3X1LKbq
+      school_level: Postgraduate
+      subject: Business & Management
     lanimal:
       email: clamaison@gmail.com
       name: CL
@@ -34,9 +65,8 @@ credentials:
       school_level: Graduate
     samrcs:
       age: 23
-      courses: Financial Accounting, Management Control, Negociating the Best Deal,
-        Capital Markets, Portfolio Management, Financial Reporting & Analysis, Data
-        Analysis, Strategies, Project Management,
+      courses: Accelerated Natural Language Processing, Computer Vision, Machine Learning
+        Practical, Introduction to database, Perso
       date_of_birth: '2002-07-05'
       degree: MSc
       document_courses:
