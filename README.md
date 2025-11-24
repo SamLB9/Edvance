@@ -52,33 +52,32 @@ A production-ready, multi-user educational platform that leverages advanced AI/M
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Streamlit Frontend                        │
+│                    Streamlit Frontend                       │
 │  (Authentication, UI Components, State Management)          │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│                  Application Layer (app.py)                  │
-│  • User session management                                   │
-│  • Multi-tenant data isolation                               │
-│  • Background task orchestration                              │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-┌───────▼──────┐ ┌────▼─────┐ ┌──────▼──────┐
-│  RAG Engine  │ │  Quiz    │ │  Summary    │
-│              │ │  Engine  │ │  Engine     │
-│ • Embeddings │ │          │ │             │
-│ • Retrieval  │ │ • Adaptive│ │ • LaTeX Gen │
-│ • Context    │ │   Diff.  │ │ • PDF Comp. │
-└───────┬──────┘ └────┬─────┘ └──────┬──────┘
-        │              │              │
-        └──────────────┼──────────────┘
-                       │
-        ┌──────────────▼──────────────┐
-        │      ChromaDB Vector Store   │
-        │  (Persistent embeddings)     │
-        └──────────────────────────────┘
+└────────────────────────────┬────────────────────────────────┘
+                             │
+┌────────────────────────────▼────────────────────────────────┐
+│                  Application Layer (app.py)                 │
+│                • User session management                    │
+│                • Multi-tenant data isolation                │
+│                • Background task orchestration              │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+              ┌──────────────┼───────────────┐
+              │              │               │
+      ┌───────▼──────┐ ┌─────▼─────┐ ┌───────▼─────┐
+      │  RAG Engine  │ │  Quiz     │ │  Summary    │
+      │ • Embeddings │ │• Adaptive │ │  Engine     │ 
+      │ • Retrieval  │ │   Diff.   │ │ • LaTeX Gen │
+      │ • Context    │ │           │ │ • PDF Comp. │
+      └───────┬──────┘ └─────┬─────┘ └──────┬──────┘
+              │              │              │
+              └──────────────┼──────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │      ChromaDB Vector Store  │
+              │  (Persistent embeddings)    │
+              └─────────────────────────────┘
 ```
 
 ---
