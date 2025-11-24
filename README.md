@@ -319,4 +319,4 @@ python -m src.main --topic "Bayes theorem" --n 4 --feedback immediate
 
 ---
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&width=435&lines=Built+with+%E2%9D%A4%EF%B8%8F+using+Python%2C+LangChain%2C+and+OpenAI)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&width=500&lines=Built+with+%E2%9D%A4%EF%B8%8F+using+Python%2C+LangChain%2C+and+OpenAI)](https://git.io/typing-svg)
