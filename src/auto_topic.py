@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 
 
 def one_liner_from_context(ctx: str) -> str:
@@ -9,7 +9,7 @@ def one_liner_from_context(ctx: str) -> str:
 
     Returns a sentence (<=16 words) describing the document's main subject, with no meta mentions.
     """
-    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0)
+    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0, openai_api_key=OPENAI_API_KEY)
     sys = (
         "You write ultra-concise subject lines. "
         "Output a single sentence (<=16 words) describing the document’s main subject. "

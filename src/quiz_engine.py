@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, List, Literal, TypedDict, Union, Optional
 
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 
 
 # ---- Types ---------------------------------------------------------------
@@ -128,7 +128,7 @@ def generate_quiz(
     excluded_prompts: optional list of prompt strings that must not be repeated.
     difficulty: optional hint among {'easy','medium','hard'}.
     """
-    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2)
+    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2, openai_api_key=OPENAI_API_KEY)
 
     avoidance_instructions = ""
     if excluded_prompts:

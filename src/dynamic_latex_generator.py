@@ -5,7 +5,7 @@ Dynamic LaTeX generator using GPT to create customizable LaTeX code.
 import os
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 
 #CONVERSION RULES:
 #1. Every standalone heading becomes \\section{{heading}} or \\subsection{{heading}}
@@ -53,7 +53,7 @@ def generate_latex_code(summary_data: Dict[str, Any], logo_path: str = None) -> 
     
     try:
         # Initialize GPT model
-        llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.5)
+        llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.5, openai_api_key=OPENAI_API_KEY)
         
         # Generate LaTeX code
         response = llm.invoke(prompt)

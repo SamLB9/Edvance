@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 import json
 
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 
 
 SYS_PROMPT = (
@@ -50,7 +50,7 @@ def _normalize_text(s: str, max_words: int | None = None) -> str:
 
 
 def generate_flashcards(context: str, topic: str, n: int = 12, allow_cloze: bool = True, options: Dict[str, Any] | None = None, user_context: str = "") -> Dict[str, Any]:
-    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2)
+    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2, openai_api_key=OPENAI_API_KEY)
     typeline = "Use a mix of basic and cloze." if allow_cloze else "Use basic only."
     # Incorporate options into guidance (best-effort; engine still validates post hoc)
     mix_hint = ""

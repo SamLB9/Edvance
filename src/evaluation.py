@@ -1,5 +1,5 @@
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 import json
 from typing import Any, Dict
 
@@ -41,7 +41,7 @@ def _validate_grade_schema(obj: Dict[str, Any]) -> Dict[str, Any]:
 
 def grade_answer(question: str, reference_answer: str, student_answer: str) -> Dict[str, Any]:
     """Grade a single answer and return a parsed JSON object with keys 'correct' and 'feedback'."""
-    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0)
+    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0, openai_api_key=OPENAI_API_KEY)
     prompt = (
         "=== QUESTION ===\n"
         f"{question}\n\n"

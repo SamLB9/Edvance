@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, List
 from langchain_openai import ChatOpenAI
-from .config import OPENAI_MODEL
+from .config import OPENAI_MODEL, OPENAI_API_KEY
 from .dynamic_latex_generator import generate_latex_code
 
 
@@ -67,7 +67,7 @@ def generate_enhanced_summary_with_pdf(context: str, focus: str, pdf_name: str, 
         Dictionary containing the summary, PDF path, and metadata
     """
     # Generate the summary first
-    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.3)
+    llm = ChatOpenAI(model=OPENAI_MODEL, temperature=0.3, openai_api_key=OPENAI_API_KEY)
     
     # Build user context section
     user_context_section = ""

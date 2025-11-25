@@ -48,3 +48,10 @@ data/notes/*
 
 # Progress data (optional - you might want to keep this)
 # progress.json
+
+# Environment variables (contains API keys)
+.env
+
+# User-specific data
+user_data/
+document_topics.json

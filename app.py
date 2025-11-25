@@ -654,17 +654,11 @@ def _load_vectorstore():
     return build_or_load_vectorstore([])
 
 def ensure_vectorstore_loaded() -> None:
-    """Lazy load vector store only when needed"""
+    """Lazy load vector store only when needed - loads persisted store (fast)"""
     if "vs" not in st.session_state:
-        # Only show spinner if we're actually loading
-        if not st.session_state.get("vs_loading", False):
-            st.session_state["vs_loading"] = True
-            with st.spinner("Loading vector store..."):
-                st.session_state.vs = _load_vectorstore()
-            st.session_state["vs_loading"] = False
-        else:
-            # If already loading, just wait
-            st.session_state.vs = _load_vectorstore()
+        # Load existing persisted vector store (fast - no document loading/chunking)
+        # The vector store is rebuilt only when documents are uploaded (in upload_tab)
+        st.session_state.vs = _load_vectorstore()
 
 
 def clear_quiz_generation_state() -> None:
@@ -1450,30 +1444,41 @@ def upload_tab():
                 sig = tuple(sorted((f.name, 0) for f in files))
                     
             if st.session_state.get("last_upload_sig") != sig:
-                saved = save_uploaded_files(files, current_username)
-                with st.spinner("Processing files..."):
-                    user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
-                    docs = load_documents(str(user_notes_dir))
-                    chunks = chunk_documents(docs)
-                    st.session_state.vs = build_or_load_vectorstore(chunks)
-                    
-                    # Clean up orphaned topics and generate new ones
-                    cleanup_orphaned_topics(current_username)
-                    with st.spinner("Generating document topics..."):
-                        generate_and_cache_document_topics(docs, current_username)
-                    
-                st.session_state.last_upload_sig = sig
-                st.session_state.vs_built_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-                    
-                # Clear caches when vector store is rebuilt
-                _list_notes_cached.clear()
-                _load_vectorstore.clear()
-                pdf_cache_keys = [k for k in st.session_state.keys() if k.startswith("pdf_preview_")]
-                for key in pdf_cache_keys:
-                    st.session_state.pop(key, None)
+                try:
+                    saved = save_uploaded_files(files, current_username)
+                    with st.spinner("Processing files..."):
+                        user_notes_dir = get_user_notes_dir(current_username) if current_username else NOTES_DIR
+                        docs = load_documents(str(user_notes_dir))
+                        chunks = chunk_documents(docs)
+                        st.session_state.vs = build_or_load_vectorstore(chunks)
                         
-                st.success(f"✅ Uploaded {len(saved)} files successfully!")
-                st.balloons()
+                        # Clean up orphaned topics and generate new ones
+                        cleanup_orphaned_topics(current_username)
+                        with st.spinner("Generating document topics..."):
+                            generate_and_cache_document_topics(docs, current_username)
+                        
+                    st.session_state.last_upload_sig = sig
+                    st.session_state.vs_built_at = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+                        
+                    # Clear caches when vector store is rebuilt
+                    _list_notes_cached.clear()
+                    _load_vectorstore.clear()
+                    pdf_cache_keys = [k for k in st.session_state.keys() if k.startswith("pdf_preview_")]
+                    for key in pdf_cache_keys:
+                        st.session_state.pop(key, None)
+                            
+                    st.success(f"✅ Uploaded {len(saved)} files successfully!")
+                    st.balloons()
+                except Exception as e:
+                    error_msg = str(e)
+                    # Check for API key errors
+                    if "401" in error_msg or "invalid_api_key" in error_msg.lower() or "incorrect api key" in error_msg.lower():
+                        st.error("🔑 **API Key Error**: Your OpenAI API key is incorrect or expired. Please check your `.env` file and ensure `OPENAI_API_KEY` is set correctly. You can get a new API key at https://platform.openai.com/account/api-keys")
+                    elif "OPENAI_API_KEY" in error_msg or "API key" in error_msg:
+                        st.error(f"🔑 **API Key Error**: {error_msg}\n\nPlease check your `.env` file in the project root and ensure `OPENAI_API_KEY` is set correctly.")
+                    else:
+                        st.error(f"❌ Error processing files: {error_msg}")
+                        st.info("💡 If this is an API key issue, check your `.env` file and ensure `OPENAI_API_KEY` is set correctly.")
             else:
                 st.info("These files have already been processed.")
 
@@ -2486,14 +2491,39 @@ def summary_tab():
                 ref_path = get_file_path(selected_file, current_username)
                 ref_abs = str(ref_path.resolve())
 
+                # Ensure vector store is loaded (fast - uses persisted store)
+                ensure_vectorstore_loaded()
+                
+                # Check if vector store is actually usable
+                if st.session_state.vs is None:
+                    st.error("Vector store not available. Please upload documents first in the Upload Courses tab.")
+                    st.session_state["summary_generating"] = False
+                    st.session_state.pop("summary_pending", None)
+                    cancel_ph.empty()
+                    return
+                
                 # Retrieve context using focus if provided, otherwise use the filename as a broad query
                 # IMPORTANT: Pass source_path to filter retrieval to ONLY the selected file
                 _focus = pending_summary.get("focus", "").strip()
                 query = _focus if _focus else selected_file
-                context = retrieve_context(st.session_state.vs, query, k=8, source_path=ref_abs)
+                
+                try:
+                    context = retrieve_context(st.session_state.vs, query, k=8, source_path=ref_abs)
+                except Exception as e:
+                    st.error(f"Error retrieving context: {e}")
+                    st.info("💡 Try uploading the document again or check if the vector store needs to be rebuilt.")
+                    st.session_state["summary_generating"] = False
+                    st.session_state.pop("summary_pending", None)
+                    cancel_ph.empty()
+                    return
                 
                 if not context.strip():
-                    st.warning("No relevant content found for this focus area. Try a different topic or check if the notes contain relevant information.")
+                    st.warning("⚠️ No relevant content found for this focus area.")
+                    st.info("💡 **Troubleshooting tips:**\n"
+                           "1. Try a broader focus area or leave it empty for a general summary\n"
+                           "2. Make sure the document was uploaded successfully\n"
+                           "3. Try uploading the document again to rebuild the vector store\n"
+                           "4. Check that the document contains text (not just images)")
                     st.session_state["summary_generating"] = False
                     st.session_state.pop("summary_pending", None)
                     cancel_ph.empty()
